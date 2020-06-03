@@ -2,6 +2,7 @@
 library(Seurat)
 library(Matrix)
 library(data.table)
+library(tidyverse)
 
 mk_seurat <- function(path, project_name = "", downsample = FALSE, ds_n_genes = 6000, ds_n_cells = 3000) {
 	expr <- Seurat::Read10X(data.dir = path)
@@ -12,12 +13,12 @@ mk_seurat <- function(path, project_name = "", downsample = FALSE, ds_n_genes = 
 	return(seurat)
 }
 
-import_seurat <- function(path, project_name) {
-	mk_seurat(path, project_name)
-}
-
 export_seurat <- function(path, seurat) {
 	saveRDS(seurat, path, compress = FALSE)
+}
+
+add_metadata_seurat <- function(seurat, metadata) {
+	
 }
 
 qc_seurat <- function(seurat, min_number_genes = 200, max_percent_mito = 5, min_cells_per_gene = 0) {
@@ -26,8 +27,6 @@ qc_seurat <- function(seurat, min_number_genes = 200, max_percent_mito = 5, min_
 	gene_meta <- gene_meta[number_cells > min_cells_per_gene,]
 	return(seurat)
 }
-
-# qc_seurat(raw_seurat[[1]])
 
 process_seurat <- function(seurat, verbose = FALSE) {
 	if(verbose) print("process_seurat")
@@ -63,9 +62,9 @@ process_seurat <- function(seurat, verbose = FALSE) {
 
 main <- function() {
 	cellranger_base <- "../../cellranger"
-	cellranger_runs <- c("20200114/PFC1_1_ns/", "20200114/PFC1_3_ns/")
+	cellranger_runs <- c("aggr/PFC1_1")
 	cellranger_paths <- file.path(cellranger_base, cellranger_runs, "outs/filtered_feature_bc_matrix")
-	names(cellranger_paths) <- c("PFC1_1", "PFC1_3")
+	names(cellranger_paths) <- c("PFC1")
 	dir.exists(cellranger_paths)
 
 	out_base <- "../../data"
