@@ -1,0 +1,16 @@
+name: /u/project/geschwind/chenlo/Rexach_10xNucSeq_combinedSequencing_10_2019_jrex/.conda
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - r
+  - r-seurat
+  - r-data.table
+  - r-rprojroot
+  - r-tidyverse
+  - r-argparse
+  - r-batchtools
+  - dvc
+prefix: /u/project/geschwind/chenlo/Rexach_10xNucSeq_combinedSequencing_10_2019_jrex/.conda
+
