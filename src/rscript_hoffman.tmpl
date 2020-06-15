@@ -1,0 +1,51 @@
+#!/bin/bash
+# batchtools template for compute on Hoffman nodes, with options for high-priority / high-memory / shared-memory nodes.
+
+## job name
+#$ -N <%= job.name %>
+
+## combine stdout + stderr
+#$ -j y
+
+## output file
+#$ -o <%= log.file %>
+
+## start in caller's working dir
+#$ -cwd
+
+## copy all environment vars
+#$ -V
+
+## highp spec
+<%
+if (!is.null(resources$highp)) {
+    if (resources$highp) {
+        writeLines("#$ -l highp")
+    }
+}
+-%>
+## highmem spec
+<% 
+if (!is.null(resources$highmem)) {
+    if (resources$highmem) {
+        writeLines("#$ -l highmem")
+    }
+}
+-%>
+
+## number of cores
+<% 
+if (!is.null(resources$pe_shared)) {
+    if (resources$pe_shared > 1) {
+        writeLines(paste("#$ -pe shared", resources$pe_shared))
+    }
+}
+-%>
+
+## mem limit per core
+#$ -l h_data=<%= resources$h_data %>
+
+## time limit
+#$ -l h_rt=<%= resources$h_rt %>
+
+Rscript -e 'batchtools::doJobCollection("<%= uri %>")'
