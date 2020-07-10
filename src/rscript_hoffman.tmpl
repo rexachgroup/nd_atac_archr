@@ -43,7 +43,7 @@ if (!is.null(resources$pe_shared)) {
 -%>
 
 ## mem limit per core
-#$ -l h_data=<%= resources$h_data %>
+#$ -l h_data=<%= resources$h_data_str %>
 
 ## time limit
 #$ -l h_rt=<%= resources$h_rt %>
