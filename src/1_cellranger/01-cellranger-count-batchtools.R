@@ -67,15 +67,20 @@ getJobTable() %>%
     })
 {}
 
-ids <- getJobTable()[tags %in% c("PFC2_3", "PFC2_4", "PFC2_6", "PFC2_7")]
+ids <- getJobTable()[tags %in% c("PFC3_3")]
 
 submitJobs(ids = ids,
            reg = reg,
-           resources = list(h_data_str = MEM_LIMIT_HDATA_GB, h_rt = "24:00:00", pe_shared = NCORES, measure.memory = TRUE))
+           resources = list(
+                h_data_str = MEM_LIMIT_HDATA_GB,
+                h_rt = "24:00:00",
+                pe_shared = NCORES,
+                measure.memory = TRUE
+            ))
 waitForJobs(reg = reg)
-reduceResultsDataTable()
-getJobTable()
-failed <- getJobTable()
+# reduceResultsDataTable()
+# getJobTable()
+# failed <- getJobTable()
 # submitJobs(ids = failed$job.id, reg = reg,
 #            resources = list(h_data_str = MEM_LIMIT_HDATA_GB, h_rt = "24:00:00", pe_shared = NCORES, measure.memory = TRUE))
 # waitForJobs()
