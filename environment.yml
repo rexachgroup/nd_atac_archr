@@ -5,12 +5,14 @@ channels:
   - defaults
 dependencies:
   - r
-  - r-seurat
+  - r-seurat=3.2.3
   - r-data.table
   - r-rprojroot
   - r-tidyverse
   - r-argparse
   - r-batchtools
+  - r-signac=1.1.0
+  - r-hdf5r
   - dvc
 prefix: /u/project/geschwind/chenlo/Rexach_10xNucSeq_combinedSequencing_10_2019_jrex/.conda
 
