@@ -28,8 +28,16 @@ main <- function() {
     round2_sobj <- signac_annot_genes(round2_sobj)
     round2_sobj <- signac_annot_nucleosome(round2_sobj)
     round2_sobj <- signac_annot_tss(round2_sobj)
+
+    pdf(file.path(plot_dir, "annot_plots.pdf"), height = 7, width = 14)
+    tmp <- round2_sobj
+    tmp$high.tss <- ifelse(tmp$TSS.enrichment > 2, 'High (TSS.enrichment > 2)', 'Low (TSS.Enrichment < 2)')
+    tmp$nucleosome_group <- ifelse(tmp$nucleosome_signal > 4, 'NS > 4', 'NS < 4')
+    TSSPlot(tmp, group.by = 'high.tss') + NoLegend()
+    FragmentHistogram(object = tmp, group.by = 'nucleosome_group')
+    dev.off()
     
-    png(file.path(plot_dir, "qc_plots.png"), width = 20, height = 10, units = "in", res = 600)
+    png(file.path(plot_dir, "qc_plots.png"), width = 20, height = 10, units = "in", res = 400)
     VlnPlot(
         object = round2_sobj,
         features = c('pct_reads_in_peaks', 'peak_region_fragments',
@@ -75,8 +83,6 @@ main <- function() {
 
 
 cellranger_import_meta <- function(cellranger_dir) {
-    # Write out lm_broom lists.
-    write_csv(subcluster_tb, file.path(out_path_base, "subcluster_lme.csv"))
     cellranger_meta <- read_csv(file.path(cellranger_dir, "outs", "singlecell.csv"))
     aggregation_meta <- read_csv(file.path(cellranger_dir, "outs", "aggregation_csv.csv"))
 
