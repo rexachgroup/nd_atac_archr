@@ -2,11 +2,12 @@ liblist <- c("tidyverse", "Seurat", "Signac", "readxl", "GenomeInfoDb", "EnsDb.H
 l <- lapply(liblist, require, character.only = TRUE, quietly = TRUE)
 
 source("00_CONSTANTS.R")
-round2_10x_aggr <- file.path(CELLRANGER_ATAC_AGGR_DIR, "precg-atac-2020-subsample")
-round1_10x_aggr <- "/geschwindlabshares/lchenprj01/nucseq_nd_dpolioud/analysis/ATAC_aggr"
-metadata <- "/geschwindlabshares/lchenprj01/nucseq_combined/data/snATAC_metadata_summary_2021_c.xlsx"
+tenx_aggr <- file.path(CELLRANGER_ATAC_AGGR_DIR, "precg-atac-2020-all")
+#round1_tenx_aggr <- "/geschwindlabshares/lchenprj01/nucseq_nd_dpolioud/analysis/ATAC_aggr"
+round2_meta <- "/geschwindlabshares/lchenprj01/nucseq_combined/data/snATAC_metadata_summary_2021_d.xlsx"
+#round1_meta <- 
 celltype_markers <- "../ext/20210128_cell_markers_noependymial.csv"
-out_dir <- "../data/signac/round2_10x_aggr/"
+out_dir <- "../data/signac/precg-atac-2020-all/"
 
 data_dir <- file.path(out_dir, "data")
 plot_dir <- file.path(out_dir, "plot")
@@ -14,23 +15,29 @@ plot_dir <- file.path(out_dir, "plot")
 main <- function() {
     dir.create(data_dir, recursive = TRUE, showWarnings = FALSE)
     dir.create(plot_dir, recursive = TRUE, showWarnings = FALSE)
-    meta <- read_xlsx(metadata)
-    round2_meta <- cellranger_import_meta(round2_10x_aggr)
-    round2_meta <- inner_join(round2_meta, meta, by = c("library_id" = "ATAC_sampleID")) %>%
+    sample_meta <- read_xlsx(round2_meta)
+    tenx_meta <- cellranger_import_meta(tenx_aggr)
+    meta <- inner_join(tenx_meta, sample_meta, by = c("library_id" = "ATAC_fastq_name")) %>%
         as.data.frame
-    rownames(round2_meta) <- round2_meta$barcode
-    round2_meta$cell_ids <- round2_meta$barcode
-    round2_sobj <- signac_cellranger_import(round2_10x_aggr, round2_meta)
-    print(dim(t(round2_meta)))
-    print(dim(round2_sobj))
-    saveRDS(round2_sobj, file.path(data_dir, "import.rds"), compress = FALSE)
+    rownames(meta) <- meta$barcode
+    meta$cell_ids <- meta$barcode
+    sobj <- signac_cellranger_import(tenx_aggr, meta)
+    print(dim(meta))
+    print(dim(sobj))
+    saveRDS(sobj, file.path(data_dir, "import.rds"), compress = FALSE)
+    valid_cells <- intersect(colnames(sobj), rownames(meta))
+    sobj <- subset(sobj, cells = valid_cells)
+    saveRDS(sobj, file.path(data_dir, "subset.rds"), compress = FALSE)
     
-    round2_sobj <- signac_annot_genes(round2_sobj)
-    round2_sobj <- signac_annot_nucleosome(round2_sobj)
-    round2_sobj <- signac_annot_tss(round2_sobj)
+    sobj <- signac_annot_genes(sobj)
+    saveRDS(sobj, file.path(data_dir, "prefilter_chkpt.rds"))
+    sobj <- signac_annot_nucleosome(sobj)
+    saveRDS(sobj, file.path(data_dir, "prefilter_chkpt.rds"))
+    sobj <- signac_annot_tss(sobj)
+    saveRDS(sobj, file.path(data_dir, "prefilter_chkpt.rds"))
 
     pdf(file.path(plot_dir, "annot_plots.pdf"), height = 7, width = 14)
-    tmp <- round2_sobj
+    tmp <- sobj
     tmp$high.tss <- ifelse(tmp$TSS.enrichment > 2, 'High (TSS.enrichment > 2)', 'Low (TSS.Enrichment < 2)')
     tmp$nucleosome_group <- ifelse(tmp$nucleosome_signal > 4, 'NS > 4', 'NS < 4')
     TSSPlot(tmp, group.by = 'high.tss') + NoLegend()
@@ -39,32 +46,36 @@ main <- function() {
     
     png(file.path(plot_dir, "qc_plots.png"), width = 20, height = 10, units = "in", res = 400)
     VlnPlot(
-        object = round2_sobj,
+        object = sobj,
         features = c('pct_reads_in_peaks', 'peak_region_fragments',
                    'TSS.enrichment', 'blacklist_ratio', 'nucleosome_signal'),
         pt.size = 0.1,
         ncol = 5
     )
     dev.off()
+    rm(tmp)
+    gc()
 
-    saveRDS(round2_sobj, file.path(data_dir, "prefilter.rds"))
-    round2_sobj <- signac_preprocess_filter(round2_sobj)
-    print(dim(round2_sobj))
-    saveRDS(round2_sobj, file.path(data_dir, "preclustering.rds"))
+    saveRDS(sobj, file.path(data_dir, "prefilter.rds"))
+    sobj <- signac_preprocess_filter(sobj)
+    print(dim(sobj))
+    saveRDS(sobj, file.path(data_dir, "preclustering.rds"))
     
-    round2_sobj <- signac_nlme(round2_sobj)
-    saveRDS(round2_sobj, file.path(data_dir, "postclustering.rds"))
+    sobj <- signac_nlme(sobj)
+    saveRDS(sobj, file.path(data_dir, "postclustering.rds"))
+    gc()
     pdf(file.path(plot_dir, "clustering_umap.pdf"))
-    DimPlot(round2_sobj, label = TRUE) + NoLegend()
-    DimPlot(round2_sobj, label = FALSE, group.by = "library_id")
+    DimPlot(sobj, label = TRUE) + NoLegend()
+    DimPlot(sobj, label = FALSE, group.by = "library_id")
     dev.off()
-    round2_sobj <- signac_gene_activity(round2_sobj)
-    saveRDS(round2_sobj, file.path(data_dir, "postgeneact.rds"))
+    sobj <- signac_gene_activity(sobj)
+    saveRDS(sobj, file.path(data_dir, "postgeneact.rds"))
+    gc()
 
     pdf(file.path(plot_dir, "marker_umap.pdf"), width = 20, height = 20)
-    DefaultAssay(round2_sobj) <- 'RNA'
+    DefaultAssay(sobj) <- 'RNA'
     FeaturePlot(
-        object = round2_sobj,
+        object = sobj,
         features = c('MS4A1', 'CD3D', 'LEF1', 'NKG7', 'TREM1', 'LYZ'),
         pt.size = 0.1,
         max.cutoff = 'q95',
@@ -73,11 +84,11 @@ main <- function() {
     dev.off()
 
     ct_markers <- read_csv(celltype_markers)
-    round2_sobj <- assign_celltype(round2_sobj, ct_markers)
-    round2_sobj$cluster_ids <- round2_sobj[["peaks_snn_res.0.8"]]
-    round2_sobj <- assign_cluster_celltype(round2_sobj)
-    #     saveRDS(round2_sobj, file.path(data_dir, "postcelltype.rds"))
-    saveRDS(round2_sobj, file.path(data_dir, "signac.rds"), compress = FALSE)
+    sobj <- assign_celltype(sobj, ct_markers)
+    sobj$cluster_ids <- sobj[["peaks_snn_res.0.8"]]
+    sobj <- assign_cluster_celltype(sobj)
+    saveRDS(sobj, file.path(data_dir, "postcelltype.rds"))
+    saveRDS(sobj, file.path(data_dir, "signac.rds"), compress = FALSE)
 
 }
 
@@ -99,10 +110,12 @@ cellranger_import_meta <- function(cellranger_dir) {
 signac_cellranger_import <- function(cellranger_dir, meta, downsample = NULL) {
     peak_path <- file.path(cellranger_dir, "outs", "filtered_peak_bc_matrix.h5")
     frag_path <- file.path(cellranger_dir, "outs", "fragments.tsv.gz")
-    writeLines(str_glue("signac_cellranger_import: \n peak file:{peak_path} \nfrag file:{frag_path}"))
+    writeLines(str_glue("signac_cellranger_import: \npeak file:{peak_path} \nfrag file:{frag_path}"))
     counts <- Read10X_h5(peak_path)
-    stopifnot(all(colnames(counts) %in% rownames(meta)))
-    meta <- meta[colnames(counts), ]
+    #stopifnot(all(colnames(counts) %in% rownames(meta)))
+    valid_cells <- intersect(colnames(counts), rownames(meta))
+    meta <- meta[valid_cells, ]
+    counts <- counts[, valid_cells]
 
     chrom_assay <- CreateChromatinAssay(
         counts = counts,
@@ -169,7 +182,7 @@ signac_nlme <- function(sobj, dims = 1:30) {
     sobj <- sobj %>%
         RunUMAP(reduction = "lsi", dims = dims) %>%
         FindNeighbors(reduction = "lsi", dims = dims) %>%
-        FindClusters(verbose = FALSE)
+        FindClusters()
     return(sobj)
 }
 
