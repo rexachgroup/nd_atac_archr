@@ -1,5 +1,6 @@
 # Root directory for fastqs. Each library should be in a separate, named directory.
 FASTQ_DIR <- normalizePath("../fastqs/PreCG_final_ATAC2020/DG_32_10X_ATAC_S-20-1357_GAP233/")
+FASTQ_META <- normalizePath("../data/snATAC_metadata_summary_2021_d.xlsx")
 
 CELLRANGER_ATAC_COUNT_DIR <- normalizePath("../data/cellranger-atac-count/precg-atac-2020")
 CELLRANGER_ATAC_COUNT_BATCHTOOLS <- paste0(CELLRANGER_ATAC_COUNT_DIR, "-batchtools")
