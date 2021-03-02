@@ -10,6 +10,7 @@ dependencies:
   - r-batchtools
   - r-devtools
   - r-biocmanager
+  - r-seurat
   - dvc
 prefix: /u/project/geschwind/chenlo/Rexach_10xNucSeq_combinedSequencing_10_2019_jrex/.conda
 
