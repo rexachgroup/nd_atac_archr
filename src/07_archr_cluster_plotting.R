@@ -31,7 +31,7 @@ main <- function() {
     )
     agg_png(file.path(out_archr_project, "Plots", "cluster_sample_heatmap.png"), height = 0.25 * nrow(cprop), width = 0.2 * ncol(cprop), units = "in", res = 300)
     print(cm_heatmap)
-    dev.off()
+    graphics.off()
 
     agg_png(file.path(out_archr_project, "Plots", "sample_umap.png"), height = 10, width = 10, units = "in", res = 300)
     print(plotEmbedding(project, colorBy = "cellColData", name = "Sample", embedding = "UMAP"))
@@ -72,6 +72,7 @@ main <- function() {
     })
     plotlist_png_square(marker_plot_fmt, 
         file.path(out_archr_project, "Plots", "markerGene_UMAP.png"), width = 2, height = 2, units = "in", res = 300)
+    graphics.off()
 
     # metadata UMAP
     meta_plot_list <- plotEmbedding(project,
@@ -88,13 +89,58 @@ main <- function() {
         theme(plot.margin = unit(c(0, 0, 0, 0), "cm"))
     })
     plotlist_png_square(meta_plot_fmt,
-        file.path(out_archr_project, "Plots", "meta_plot_UMAP.png"), width = 6, height = 6, units = "in", res = 300)
+        file.path(out_archr_project, "Plots", "meta_plot_UMAP.png"), width = 4, height = 4, units = "in", res = 300)
+    graphics.off()
+
+    # Individual variables.
 
     dx_plotlist <- plot_individual_meta_lvls(project, "Clinical.Dx", "ggHex")
-    plotlist_png_square(dx_plotlist, file.path(out_archr_project, "Plots", "clinical_dx.png"), width = 6, res = 300)
+    plotlist_png_square(dx_plotlist, file.path(out_archr_project, "Plots", "clinical_dx.png"), width = 4, res = 300)
 
     region_plotlist <- plot_individual_meta_lvls(project, "region", "ggHex")
-    plotlist_png_square(region_plotlist, file.path(out_archr_project, "Plots", "region.png"), width = 6, res = 300)
+    plotlist_png_square(region_plotlist, file.path(out_archr_project, "Plots", "region.png"), width = 4, res = 300)
+
+    library_plotlist <- plot_individual_meta_lvls(project, "Sample", "ggPoint")
+    plotlist_png_square(library_plotlist, file.path(out_archr_project, "Plots", "library_id.png"), width = 4, res = 200)
+
+    # per-region metadata UMAP
+    walk(unique(project$region), function(s) {
+        writeLines(s)
+        region_cells <- which(project$region %in% s)
+        print(length(region_cells))
+        tmp_proj <- project[region_cells, ]
+        print(tmp_proj)
+        plot_list <- plotEmbedding(tmp_proj,
+            colorBy = "cellColData",
+            name = c("Clusters", "FinalSite", "Clinical.Dx", "region", "PrepBatch", "SeqBatch"),
+            embedding = "UMAP",
+            quantCut = c(0.01, 0.95),
+            imputeWeights = NULL
+        )
+        graphics.off()
+        plotlist_png_square(plot_list,
+            file.path(out_archr_project, "Plots", str_glue("meta_{s}_UMAP.png")), width = 4, res = 300) 
+        graphics.off()
+    })
+
+    project@cellColData %>%
+        as_tibble(rownames = "cell_id") %>%
+        group_by(region, Clusters) %>%
+        summarize(n = n()) %>%
+        write_csv(file.path(out_archr_project, "cluster_cell_counts.csv"))
+
+    # marker tracks
+    marker_tracks <- plotBrowserTrack(project,
+        groupBy = "Clusters",
+        geneSymbol = marker_tb$gene_symbol,
+        upstream = 50000,
+        downstream = 50000
+    )
+    plotPDF(marker_tracks,
+        name = "marker_tracks.pdf",
+        project = project,
+        addDOC = FALSE,
+        width = 4, height = 4)
 
 }
 
