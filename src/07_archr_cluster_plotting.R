@@ -125,7 +125,7 @@ main <- function() {
 
     project@cellColData %>%
         as_tibble(rownames = "cell_id") %>%
-        group_by(region, Clusters) %>%
+        group_by(Sample, Clusters) %>%
         summarize(n = n()) %>%
         write_csv(file.path(out_archr_project, "cluster_cell_counts.csv"))
 
@@ -141,7 +141,7 @@ main <- function() {
         project = project,
         addDOC = FALSE,
         width = 4, height = 4)
-
+    graphics.off()
 }
 
 plot_individual_meta_lvls <- function(project, column, type = "ggPoint") {
