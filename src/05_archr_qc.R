@@ -101,12 +101,6 @@ main <- function() {
         alpha = 0.4,
         addBoxPlot = TRUE
     )
-    p5 <- plotGroups(
-        ArchRProj = project,
-        groupBy = "Sample",
-        colorBy = "cellColData",
-        name = 
-    )
 
     plotPDF(p1,p2,p3,p4, name = "QC-Sample-Statistics.pdf", ArchRProj = project, addDOC = FALSE, width = 10, height = 10)
 }
