@@ -13,6 +13,8 @@ dependencies:
   - r-ragg
   - r-seurat
   - r-pheatmap
+  - r-patchwork
   - dvc
+  - macs2
 prefix: /u/project/geschwind/chenlo/Rexach_10xNucSeq_combinedSequencing_10_2019_jrex/.conda
 
