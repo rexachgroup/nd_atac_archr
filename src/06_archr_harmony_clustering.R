@@ -10,6 +10,11 @@ sample_table <- file.path(base_dir, "preprocess", "sample_tb.rds")
 out_archr_project <- file.path(base_dir, "clustering_harmony")
 celltype_markers <- normalizePath("../ext/20210128_cell_markers_noependymial.csv")
 seurat_obj <- normalizePath("../../nucseq_nd_dpolioud/analysis/pci_import/pci_seurat.rds")
+drop_samples <- c("P1_7_at1_7", "i3_6_at", "I1_7")
+
+writeMsg <- function(msg) {
+    writeLines(str_pad(width = getOption("width"), str_glue(setBold, msg, setNorm), side = "both"))
+}
 
 main <- function() {
     addArchRThreads()
@@ -21,7 +26,7 @@ main <- function() {
     setwd(out_archr_project)
     marker_tb <- read_csv(celltype_markers)
 
-    # Copy metadata from subject to cellColData.
+    writeMsg("copy metadata from sample_meta to cellColData")
     sample_meta <- read_xlsx(SAMPLE_META)
     cell_meta <- as_tibble(project@cellColData, rownames = "cell_id")
     meta_join <- left_join(cell_meta, sample_meta, by = c("Sample" = "ATAC_fastq_name"))
@@ -29,22 +34,25 @@ main <- function() {
     new_cols <- setdiff(colnames(meta_join), colnames(cell_meta))
     project@cellColData[, new_cols] <- meta_join[, new_cols]
 
-    # Copy project.
-    project <- saveArchRProject(project, out_archr_project)
-
-    # Doublet removal before clustering.
+    writeMsg("pre-cluster doublet removal")
     filterDoublets(project)
     
-    # additional filtering -- TSSEnrichment > 4, BlacklistRatio < 0.1
+    # additional filtering on top of import filtering-- TSSEnrichment > 4, BlacklistRatio < 0.1
+    # Drop samples P1_7at1_7. i3_6_at, I1_7
+    writeMsg("pre-clustering cell / sample filtering")
     cell_data <- as_tibble(project@cellColData, rownames = "cell_id")
     filtered_cells <- cell_data %>%
         filter(TSSEnrichment > 4, BlacklistRatio < 0.1) %>%
+        filter(!Sample %in% drop_samples) %>%
         pluck("cell_id")
     writeLines(str_glue("{length(filtered_cells)} / {nrow(cell_data)} cells after filtering"))
 
     writeLines("subset")
     project <- project[filtered_cells, ]
     cell_data <- as_tibble(project@cellColData, rownames = "cell_id")
+    
+    # Copy project.
+    project <- saveArchRProject(project, out_archr_project, dropCells = TRUE)
 
     # LSI
     project <- addIterativeLSI(project,
