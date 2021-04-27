@@ -8,7 +8,6 @@ celltype_markers <- normalizePath("../ext/20210128_cell_markers_noependymial.csv
 seurat_obj <- normalizePath("../../nucseq_nd_dpolioud/analysis/pci_import/pci_seurat.rds")
 out_dir <- file.path(base_dir, "07_archr_harmony_subclustering")
 batchtools <- file.path(out_dir, "batchtools")
-drop_samples <- c("P1_7_at1_7", "i3_6_at", "I1_7")
 
 RESOURCES <- list(
     ncpus = 8,
@@ -58,6 +57,14 @@ main <- function() {
     submitJobs(ids, resources = RESOURCES)
     waitForJobs()
     saveRDS(cluster_args_tb, file.path(out_dir, "cluster_args_tb.rds"))
+
+    pmap(cluster_args_tb, function(...){
+        cr <- list(...)
+        file.copy(
+            file.path(cr$out_path, "marker_genescores.csv"),
+            file.path(out_dir, paste(cr$proj_name, "marker_genescores.csv", sep = "_"))
+        )
+    })
 }
 
 subcluster_worker <- function(proj_dir, f_region, f_cluster, drop_samples, out_path) {
@@ -136,7 +143,7 @@ subcluster_worker <- function(proj_dir, f_region, f_cluster, drop_samples, out_p
         }) %>% bind_cols %>%
         mutate(gene = gene_names) %>%
         select(gene, everything())
-    write_csv(marker_assay_matrices, file.path(cr$out_path, "marker_genescores.csv"))
+    write_csv(marker_assay_matrices, file.path(out_path, "marker_genescores.csv"))
 
     saveArchRProject(project, out_path, load = FALSE)
 }
