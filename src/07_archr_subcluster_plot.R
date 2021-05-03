@@ -38,7 +38,7 @@ main <- function() {
         cr <- list(...)    
         filelist <- list.files(str_glue("{cr$proj_dir}/Plots/"), pattern = "*.png", full.names = TRUE)
         dir.create(file.path(out_dir, cr$proj_name), showWarnings = FALSE)
-        file.copy(filelist, file.path(out_dir, cr$proj_name))
+        file.copy(filelist, file.path(out_dir, cr$proj_name), overwrite = TRUE)
     })
 
 }
@@ -156,9 +156,9 @@ plot_worker <- function(proj_dir) {
 
     project@cellColData %>%
         as_tibble(rownames = "cell_id") %>%
-        group_by(Sample, Clusters) %>%
+        group_by(Sample, Clinical.Dx, Clusters) %>%
         summarize(n = n()) %>%
-        write_csv(file.path(proj_dir, "cluster_cell_counts.csv"))
+        write_csv(file.path(proj_dir, "subcluster_cell_counts.csv"))
 
     # marker tracks
     marker_tracks <- plotBrowserTrack(project,
