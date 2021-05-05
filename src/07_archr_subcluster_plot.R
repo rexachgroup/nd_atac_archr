@@ -1,3 +1,4 @@
+# Plot + copy outputs to shared folder.
 liblist <- c("tidyverse", "batchtools", "readxl", "Seurat", "ArchR", "pheatmap", "patchwork", "ragg")
 l <- lapply(liblist, require, character.only = TRUE, quietly = TRUE)
 
@@ -33,6 +34,17 @@ main <- function() {
         args = list(proj_dir = cluster_args_tb$proj_dir))
     submitJobs(ids, RESOURCES)
     waitForJobs()
+
+    pmap(cluster_args_tb, function(...) {
+        cr <- list(...)
+        project <- loadArchRProject(cr$proj_dir)
+        cell_counts <- project@cellColData %>%
+            as_tibble(rownames = "cell_id") %>%
+            group_by(Sample, Clinical.Dx, Clusters) %>%
+            summarize(n = n())
+        write_csv(cell_counts, file.path(cr$proj_dir, "subcluster_cell_counts.csv"))
+        write_csv(cell_counts, file.path(out_dir, paste(cr$proj_name, "subcluster_cell_counts.csv", sep = "-")))
+    })
 
     pmap(cluster_args_tb, function(...) {
         cr <- list(...)    
