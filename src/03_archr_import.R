@@ -11,6 +11,7 @@ data_dir <- file.path(out_dir, "data")
 plot_dir <- file.path(out_dir, "plot")
 
 main <- function() {
+    addArchRThreads(16)
     dir.create(data_dir, recursive = TRUE, showWarnings = FALSE)
     dir.create(plot_dir, recursive = TRUE, showWarnings = FALSE)
     sample_meta <- read_xlsx(SAMPLE_META)
@@ -33,7 +34,8 @@ main <- function() {
         minFrags = 1000,
         addTileMat = TRUE,
         addGeneScoreMat = TRUE,
-        subThreading = FALSE
+        subThreading = FALSE,
+        force = TRUE
     )
 }
 
