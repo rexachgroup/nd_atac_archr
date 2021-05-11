@@ -23,8 +23,8 @@ RESOURCES <- list(
     walltime = 86400
 )
 
-nATAC <- 40000
-nRNA <- 25000
+nATAC <- 100000
+nRNA <- 100000
 
 main <- function() { 
     dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
@@ -126,6 +126,7 @@ integration_worker <- function(proj_path, out_path, sobj_cellids) {
         useMatrix = "GeneScoreMatrix",
         matrixName = "GeneIntegrationMatrix",
         reducedDims = "IterativeLSI",
+        groupATAC = "Clinical.Dx",
         seRNA = sobj,
         sampleCellsATAC = nATAC,
         sampleCellsRNA = nRNA,
