@@ -1,6 +1,8 @@
 # Integration of the subclustered clusters with RNA data.
 liblist <- c("tidyverse", "batchtools", "readxl", "Seurat", "ArchR", "pheatmap", "ragg")
-l <- lapply(liblist, require, character.only = TRUE, quietly = TRUE)
+l <- lapply(liblist, function(x) suppressPackageStartupMessages(require(x, character.only = TRUE, quietly = TRUE)))
+print(liblist)
+print(l)
 options(deparse.max.lines = 5)
 
 liblist <- c("tidyverse", "batchtools", "readxl", "Seurat", "ArchR")
@@ -58,6 +60,14 @@ main <- function() {
             sobj_cellids = map(region, function(reg) { sobj_meta %>% filter(region == reg) %>% pluck("cell_ids") })
         )
 
+    # If out dir exists, unlink.
+    pwalk(cluster_args_tb, function(...) {
+            cr <- list(...)
+            if (dir.exists(cr$out_path)) {
+                unlink(cr$out_path, recursive = TRUE)
+            }
+        })
+
     # batchtools run.
     reg$packages <- liblist
     batchExport(mget(ls()))
@@ -88,7 +98,8 @@ main <- function() {
 integration_worker <- function(proj_path, out_path, sobj_cellids) { 
     addArchRGenome("hg38")
     addArchRThreads(16)
-    l <- lapply(liblist, require, character.only = TRUE, quietly = TRUE)
+    l <- lapply(liblist, function(x) suppressPackageStartupMessages(require(x, character.only = TRUE, quietly = TRUE)))
+    writeMsg(str_glue("integration_worker params: out_path={out_path} nATAC={nATAC} nRNA={nRNA}"))
 
     writeMsg(str_glue("load {seurat_object}"))
     sobj <- readRDS(seurat_object)
@@ -135,7 +146,8 @@ integration_worker <- function(proj_path, out_path, sobj_cellids) {
         groupRNA = "ct_subcluster",
         nameCell = "predictedCell_Un",
         nameGroup = "predictedGroup_Un",
-        nameScore = "predictedScore_Un"
+        nameScore = "predictedScore_Un",
+        force = TRUE
     )
     unconstrained_clust <- as.matrix(confusionMatrix(project$Clusters, project$predictedGroup_Un))
     write_csv(as.data.frame(unconstrained_clust), file.path(out_path, "RNAIntegration", "unconstrained_clust.csv"))
