@@ -87,7 +87,7 @@ call_worker <- function(proj_dir, out_dir) {
     marker_tb <- read_csv(celltype_markers)
 
     writeMsg("group coverages")
-    project <- addGroupCoverages(project, groupBy = "Clusters")
+    project <- addGroupCoverages(project, minReplicates = 4, maxReplicates = 10, groupBy = "Clusters")
 
     macs2_path <- findMacs2()
     writeMsg(str_glue("exec {macs2_path}"))
