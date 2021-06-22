@@ -17,5 +17,8 @@ dependencies:
   - bioconductor-jaspar2018
   - dvc
   - macs2
+  - bioconductor-pwmenrich
+  - bioconductor-universalmotif
+  - meme
 prefix: /u/project/geschwind/chenlo/Rexach_10xNucSeq_combinedSequencing_10_2019_jrex/.conda
 
