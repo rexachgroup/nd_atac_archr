@@ -125,7 +125,7 @@ main <- function() {
 
     project@cellColData %>%
         as_tibble(rownames = "cell_id") %>%
-        group_by(Sample, Clusters) %>%
+        group_by(Sample, Clusters, region, Clinical.Dx) %>%
         summarize(n = n()) %>%
         write_csv(file.path(out_archr_project, "cluster_cell_counts.csv"))
 
