@@ -24,7 +24,8 @@ alert <- function() { system("tput bel") }
 RESOURCES <- list(
     ncpus = 8,
     memory = 256,
-    walltime = 86400
+    walltime = 86400,
+    partition = "bigmem"
 )
 
 main <- function() {
