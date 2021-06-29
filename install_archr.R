@@ -1,5 +1,6 @@
 library(devtools)
 library(BiocManager)
 devtools::install_github("GreenleafLab/ArchR", ref="master", repos = BiocManager::repositories())
+devtools::install_github("GreenleafLab/chromVARmotifs")
 library(ArchR)
 ArchR::installExtraPackages()
