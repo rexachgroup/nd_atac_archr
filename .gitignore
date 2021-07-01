@@ -1,2 +1,6 @@
 conda/
 data/
+fastqs/
+*ArchRLogs*
+src/archive
+ext/
