@@ -38,9 +38,8 @@ main <- function() {
         })
     )
     
-    pmap(args_tb, function(...) {
+    pwalk(args_tb, function(...) {
         cr <- list(...)
-        # reformat taipale names?
         signif_heatmap_tb <- cr$marker_signif_tb
 
         signif_heatmap_tb <- signif_heatmap_tb %>% 
@@ -54,12 +53,17 @@ main <- function() {
             dist %>%
             hclust
 
+        show_tfs_regex <- paste0(c("SPI1", "NR3C1", "RUNX1", "RUNX2"), collapse = "|")
+        col_label <- signif_hclust$label[signif_hclust$order]
+        col_label <- ifelse(grepl(show_tfs_regex, col_label), col_label, "")
+
         pdf(file.path(base_out_dir, paste0(cr$project_names, "_dirpval.pdf")),
-            width = 10,
-            height = 0.2 * length(unique(signif_heatmap_tb$name)))
+            height = 10,
+            width = 0.2 * length(unique(signif_heatmap_tb$name)))
         draw(heatmap_text_matrix(signif_heatmap_tb,
-            "dx", "name", "DirPval", 
-            label_name = "DirPval", row_hclust = signif_hclust,
+            "name", "dx", "DirPval", 
+            label_name = "DirPval", 
+            col_label = col_label, col_hclust = signif_hclust,
             na_val_fill = 0
         ))
         graphics.off()
@@ -75,7 +79,7 @@ to_tb <- function(marker_signif) {
 pivot_matrix <- function(tb, cols_from, values_from, rows_from) {
     tb_pivot <- tb %>%
         select(all_of(c(cols_from, values_from, rows_from))) %>%
-        pivot_wider(names_from = all_of(cols_from), values_from = values_from) %>%
+        pivot_wider(names_from = all_of(cols_from), values_from = all_of(values_from)) %>%
         ungroup
 
     tb_matrix <- select(tb_pivot, -rows_from) %>% as.matrix()
@@ -85,23 +89,34 @@ pivot_matrix <- function(tb, cols_from, values_from, rows_from) {
         summarize(join_rowname = paste(c_across(rows_from), collapse = "|"), .groups = "drop") %>%
         pluck("join_rowname")
 
-    glimpse(tb_matrix)
+    #glimpse(tb_matrix)
     return(tb_matrix)
 }
 
 heatmap_text_matrix <- function(tb, 
         row_str, col_str, val_str, txt_str = NULL, 
         row_split = NULL, col_split = NULL, 
-        row_hclust = FALSE, col_hclust = FALSE,
+        row_label = NULL, col_label = NULL,
+        row_hclust = NULL, col_hclust = NULL,
         label_name = NULL, na_val_fill = NA, ...
 ){
     heatmap_val_matrix <- pivot_matrix(tb, row_str, val_str, col_str)
+    print("matrix colnames:")
+    print(head(colnames(heatmap_val_matrix)))
+    print("matrix rownames:")
+    print(head(rownames(heatmap_val_matrix)))
+    print("col label:")
+    print(head(col_label))
+    print("row label:")
+    print(head(row_label))
+
     if (!is.na(na_val_fill)) {
         heatmap_val_matrix <- replace(heatmap_val_matrix, is.na(heatmap_val_matrix), na_val_fill)
     }
     if (!is.null(txt_str)) {
         heatmap_text_matrix <- pivot_matrix(tb, row_str, txt_str, col_str)
     }
+    #browser()
     row_annot <- tb %>%
         group_by(.data[[col_str]]) %>%
         slice_head %>% ungroup
@@ -109,23 +124,32 @@ heatmap_text_matrix <- function(tb,
         group_by(.data[[row_str]]) %>%
         slice_head %>% ungroup
     
-    if (is.logical(row_hclust) && !row_hclust) {
-        plot_row_order <- rownames(heatmap_val_matrix)
+    if (inherits(row_hclust, "hclust")) {
+        plot_row_order <- row_hclust$order
     } else {
-        plot_row_order <- rownames(heatmap_val_matrix)[row_hclust$order]
+        plot_row_order <- rownames(heatmap_val_matrix)
     }
-    plot_row_label <- map_chr(plot_row_order, function(x) {
-        if (str_starts(x, fixed("taipale"))) {
-            ma <- str_match(x, "taipale-(\\w+)-(\\w+)-(\\w+)")
-            return(str_glue("taipale-{ma[, 3]}-{ma[, 4]}"))
-        } else { 
-            return(x) 
-        }
-    })
+
+    if (!is.null(row_label)) {
+        plot_row_label <- row_label
+    } else if (inherits(row_hclust, "hclust")) {
+        plot_row_label <- row_hclust$label
+    } else {
+        plot_row_label <- rownames(heatmap_val_matrix)
+    }
+
+    if (inherits(col_hclust, "hclust")) {
+        plot_col_order <- col_hclust$order
+    } else {
+        plot_col_order <- colnames(heatmap_val_matrix)
+    }
     
-    if (is.logical(col_hclust) && !col_hclust) {
-        plot_col_order <- colnames(heatmap_val_matrix) #col_annot[[row_str]]
-        plot_col_label <- as.character(plot_col_order)
+    if (!is.null(col_label)) {
+        plot_col_label <- col_label 
+    } else if (inherits(col_hclust, "hclust")) {
+        plot_col_label <- col_hclust$label
+    } else {
+        plot_col_label <- colnames(heatmap_val_matrix)
     }
     
     plot_text_label <- function(j, i, x, y, w, h, col) {
@@ -143,10 +167,10 @@ heatmap_text_matrix <- function(tb,
         heatmap_val_matrix,
         col = colormap,
         na_col = "grey75",
-        cluster_rows = row_hclust,
-        cluster_columns = col_hclust,
-        row_order = if(is.logical(row_hclust) && !row_hclust) { plot_row_order } else { NULL },
-        column_order = if(is.logical(col_hclust) && !col_hclust) { plot_col_order } else { NULL },
+        cluster_rows = if (inherits(row_hclust, "hclust")) { row_hclust } else { FALSE },
+        cluster_columns = if (inherits(col_hclust, "hclust")) { col_hclust } else { FALSE },
+        row_order = if(!is.null(row_hclust)) { plot_row_order } else { NULL },
+        column_order = if(!is.null(col_hclust)) { plot_col_order } else { NULL },
         row_label = plot_row_label,
         column_label = plot_col_label,
         cell_fun = if(!is.null(txt_str)) { plot_text_label } else { NULL },
@@ -156,9 +180,13 @@ heatmap_text_matrix <- function(tb,
         row_names_max_width = unit(20, "cm"),
         row_dend_side = "right",
         row_dend_width = unit(7, "cm"),
+        row_names_side = "left",
+        column_names_max_height = unit(20, "cm"),
+        column_dend_side = "top",
+        column_dend_height = unit(7, "cm"),
+        column_names_side = "bottom",
         row_title_gp = gpar(fontsize = 10),
         column_title_gp = gpar(fontsize = 10),
-        row_names_side = "left",
         ...
     )
 }
