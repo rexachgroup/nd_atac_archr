@@ -9,7 +9,7 @@ base_dir <- normalizePath("../data/archr/atac-2020-all")
 out_dir <- file.path(base_dir, "10_tf_transfac_c2")
 
 scenic_motif_db <- normalizePath("../data/scenic.pfm.rda")
-motif_regulon_filter <- normalizePath("../data/microglia_preCGregulons_genes_GRNBoost_weights.csv")
+motif_regulon_filter <- normalizePath("../data/excitatory_preCGregulons_genes_GRNBoost_weights.csv")
 transfac_motif_db <- normalizePath("../data/transfac_pwm.rds")
 project_names <- c("precg_C2", "insula_C2")
 archr_project <- setNames(file.path(base_dir, paste0("peak_calling_", project_names)), project_names)
@@ -49,7 +49,6 @@ main <- function() {
     motif_tb <- read_csv(motif_regulon_filter)
     pwm <- TFBSTools::toPWM(pfm)
     scenic_tf <- grep_tf(pwm, motif_tb$TF)
-    write.csv(name(motif_pwmlist), file.path(out_dir, "filtered_motifs.csv"))
 
     # load transfac motif db
     
@@ -57,6 +56,7 @@ main <- function() {
     transfac_tf <- grep_tf(transfac_pwm, motif_tb$TF)
     combined_motiflist <- c(scenic_tf, transfac_tf)
     stopifnot(names(combined_motiflist) == name(combined_motiflist))
+    write.csv(name(combined_motiflist), file.path(out_dir, "filtered_motifs.csv"))
 
     clearRegistry()
     reg$packages <- liblist

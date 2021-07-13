@@ -49,7 +49,6 @@ main <- function() {
     motif_tb <- read_csv(motif_regulon_filter)
     pwm <- TFBSTools::toPWM(pfm)
     scenic_tf <- grep_tf(pwm, motif_tb$TF)
-    write.csv(name(motif_pwmlist), file.path(out_dir, "filtered_motifs.csv"))
 
     # load transfac motif db
     
@@ -57,6 +56,7 @@ main <- function() {
     transfac_tf <- grep_tf(transfac_pwm, motif_tb$TF)
     combined_motiflist <- c(scenic_tf, transfac_tf)
     stopifnot(names(combined_motiflist) == name(combined_motiflist))
+    write.csv(name(combined_motiflist), file.path(out_dir, "filtered_motifs.csv"))
 
     clearRegistry()
     reg$packages <- liblist
