@@ -6,7 +6,7 @@ print(liblist)
 print(unlist(l))
 
 base_dir <- normalizePath("../data/archr/atac-2020-all")
-out_dir <- file.path(base_dir, "10_tf_transfac")
+out_dir <- file.path(base_dir, "10_tf_transfac_c7")
 
 scenic_motif_db <- normalizePath("../data/scenic.pfm.rda")
 motif_regulon_filter <- normalizePath("../data/microglia_preCGregulons_genes_GRNBoost_weights.csv")

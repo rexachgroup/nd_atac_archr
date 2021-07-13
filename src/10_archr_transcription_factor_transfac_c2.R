@@ -1,12 +1,20 @@
-# TF / ChromVAR motif derivation
+# TF / ChromVAR motif derivation using external scenic motif set -- excitatory C2 custers
 
-liblist <- c("tidyverse", "batchtools", "readxl", "Seurat", "ArchR", "circlize", "scales", "RColorBrewer", "ComplexHeatmap")
-l <- lapply(liblist, require, character.only = TRUE, quietly = TRUE)
+liblist <- c("tidyverse", "batchtools", "readxl", "Seurat", "ArchR", "circlize", "scales", "RColorBrewer", "ComplexHeatmap", "TFBSTools")
+l <- lapply(liblist, function(x) suppressPackageStartupMessages(require(x, character.only = TRUE, quietly = TRUE)))
+print(liblist)
+print(unlist(l))
 
 base_dir <- normalizePath("../data/archr/atac-2020-all")
-archr_project <- file.path(base_dir, c("peak_calling_precg_C2", "peak_calling_precg_C7", "peak_calling_insula_C2", "peak_calling_insula_C7"))
-out_archr_project <- file.path(base_dir, c("chrom_var_precg_C2", "chrom_var_precg_C7", "chrom_var_insula_C2", "chrom_var_insula_C7"))
-batchtools <- file.path(base_dir, "chromvar_batchtools")
+out_dir <- file.path(base_dir, "10_tf_transfac_c2")
+
+scenic_motif_db <- normalizePath("../data/scenic.pfm.rda")
+motif_regulon_filter <- normalizePath("../data/microglia_preCGregulons_genes_GRNBoost_weights.csv")
+transfac_motif_db <- normalizePath("../data/transfac_pwm.rds")
+project_names <- c("precg_C2", "insula_C2")
+archr_project <- setNames(file.path(base_dir, paste0("peak_calling_", project_names)), project_names)
+out_archr_project <- setNames(file.path(out_dir, paste0("chrom_var_", project_names)), project_names)
+batchtools <- file.path(out_dir, "chromvar_batchtools")
 setBold <- system("tput rev", intern = TRUE)
 setNorm <- system("tput sgr0", intern = TRUE)
 
@@ -15,37 +23,82 @@ writeMsg <- function(msg) {
 }
 alert <- function() { system("tput bel") }
 RESOURCES <- list(
-    ncpus = 8,
-    memory = 4 * 8,
+    ncpus = 1,
+    memory = 40,
     walltime = 86400
 )
 
 main <- function() {
+    dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
     if (!dir.exists(batchtools)) {
         reg <- makeRegistry(batchtools)
     } else {
         reg <- loadRegistry(batchtools, writeable = TRUE)
     }
+    #     walk(out_archr_project, function(x) {
+    #         if(dir.exists(x)) {
+    #             unlink(x, recursive = TRUE)
+    #         }
+    #     })
+
+    args_tb <- tibble(project_names = project_names, proj_dir = archr_project, out_dir = out_archr_project)
+   
+    # load scenic motif db
+
+    load(scenic_motif_db)
+    motif_tb <- read_csv(motif_regulon_filter)
+    pwm <- TFBSTools::toPWM(pfm)
+    scenic_tf <- grep_tf(pwm, motif_tb$TF)
+    write.csv(name(motif_pwmlist), file.path(out_dir, "filtered_motifs.csv"))
+
+    # load transfac motif db
+    
+    transfac_pwm <- readRDS(transfac_motif_db)
+    transfac_tf <- grep_tf(transfac_pwm, motif_tb$TF)
+    combined_motiflist <- c(scenic_tf, transfac_tf)
+    stopifnot(names(combined_motiflist) == name(combined_motiflist))
+
     clearRegistry()
     reg$packages <- liblist
     batchExport(mget(ls()))
-    ids <- batchMap(tf_worker, args = list(proj_dir = archr_project, out_dir = out_archr_project))
+    ids <- batchMap(tf_worker,
+        args = list(proj_dir = args_tb$proj_dir, out_dir = args_tb$out_dir),
+        more.args = list(motif_pwmlist = combined_motiflist))
     setJobNames(ids, basename(out_archr_project))
     submitJobs(ids, resources = RESOURCES)
     waitForJobs()
+    alert()
 
     dx_marker_features <- map(out_archr_project, tf_dx_marker_signif)
     pmap(list(out_archr_project, dx_marker_features), tf_dx_marker_signif_export)
     pmap(list(out_archr_project, dx_marker_features), chromvar_plot_worker)
     map(out_archr_project, chromvar_export)
+    imap(out_archr_project, function(x, n) {
+        motif_csvs <- list.files(file.path(x, "TF_dx"), pattern = "*.csv", full.names = TRUE)
+        motif_plot <- file.path(x, "Plots", "zscore_dx.pdf")
+        file.copy(motif_csvs, out_dir)
+        file.copy(motif_plot, file.path(out_dir, str_glue("chrom_var_{n}_dx.pdf")))
+    })
+    saveRDS(args_tb, file.path(out_dir, "args_tb.rds"))
 }
 
-tf_worker <- function(proj_dir, out_dir) {
+grep_tf <- function(pwmatrixlist, motif_names) {
+    names(pwmatrixlist) <- name(pwmatrixlist)
+    pwm_indices <- unlist(map(unique(motif_names), function(tf) {
+        grep(tf, name(pwmatrixlist), fixed = TRUE)
+    }))
+    pwm_indices <- pwm_indices[!duplicated(pwm_indices)]
+    return(pwmatrixlist[pwm_indices])
+}
+
+tf_worker <- function(proj_dir, out_dir, motif_pwmlist) {
+    l <- lapply(liblist, function(x) suppressPackageStartupMessages(require(x, character.only = TRUE, quietly = TRUE)))
     startTime <- Sys.time()
     addArchRGenome("hg38")
-    addArchRThreads(8)
+    addArchRThreads(RESOURCES$ncpus)
 
     writeMsg(str_glue("copy {proj_dir} {out_dir}"))
+    unlink(out_dir, recursive = TRUE)
     project <- loadArchRProject(path = proj_dir)
     project <- saveArchRProject(project, out_dir, load = TRUE)
     plot_dir <- file.path(out_dir, "Plots")
@@ -54,9 +107,9 @@ tf_worker <- function(proj_dir, out_dir) {
     setwd(out_dir)
 
     writeMsg("TF motif annotations")
-    project <- addMotifAnnotations(project, motifSet =  "JASPAR2018", species = "Homo sapiens", name = "Motif", force = TRUE)
+    project <- addMotifAnnotations(project, motifSet = "custom", motifPWMs = motif_pwmlist, name = "Motif", force = TRUE)
     writeMsg("background peaks")
-    project <- addBgdPeaks(project)
+    project <- addBgdPeaks(project, force = TRUE)
     writeMsg("derivations / chromVAR matrix")
     project <- addDeviationsMatrix(project, peakAnnotation = "Motif", force = TRUE)
 
@@ -64,6 +117,38 @@ tf_worker <- function(proj_dir, out_dir) {
 
     endTime <- Sys.time()
     writeMsg(str_glue("{format(endTime - startTime)}"))
+}
+
+motif_overlap <- function(project) {
+    load(scenic_motif_db)
+
+    writeMsg("TF motif annotations")
+    pwm <- TFBSTools::toPWM(pfm)
+    print(class(pwm))
+    names(pwm) <- name(pwm)
+    writeMsg("Subset to 500")
+    pwm <- pwm[1:500]
+    
+    peakSet <- project@peakSet
+    genome <- project@genomeAnnotation$genome
+
+    motifPositions <- motifmatchr::matchMotifs(
+        pwms = pwm,
+        subject = peakSet,
+        genome = genome,
+        out = "positions",
+        p.cutoff = 5e-05,
+        w = 7
+    )
+
+    allPositions <- unlist(motifPositions)
+    overlapMotifs <- findOverlaps(peakSet, allPositions, ignore.strand = TRUE)
+    motifMat <- Matrix::sparseMatrix(
+        i = queryHits(overlapMotifs),
+        j = match(names(allPositions),names(motifPositions))[subjectHits(overlapMotifs)],
+        x = rep(TRUE, length(overlapMotifs)),
+        dims = c(length(peakSet), length(motifPositions))
+    )
 }
 
 tf_dx_marker_signif <- function(proj_dir) {
