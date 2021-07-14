@@ -60,7 +60,7 @@ main <- function() {
 
     clearRegistry()
     reg$packages <- liblist
-    batchExport(mget(ls()))
+    batchExport(mget(ls(.GlobalEnv), .GlobalEnv))
     ids <- batchMap(tf_worker,
         args = list(proj_dir = args_tb$proj_dir, out_dir = args_tb$out_dir),
         more.args = list(motif_pwmlist = combined_motiflist))
@@ -92,10 +92,10 @@ grep_tf <- function(pwmatrixlist, motif_names) {
 }
 
 tf_worker <- function(proj_dir, out_dir, motif_pwmlist) {
-    l <- lapply(liblist, function(x) suppressPackageStartupMessages(require(x, character.only = TRUE, quietly = TRUE)))
+    #l <- lapply(liblist, function(x) suppressPackageStartupMessages(require(x, character.only = TRUE, quietly = TRUE)))
     startTime <- Sys.time()
     addArchRGenome("hg38")
-    addArchRThreads(RESOURCES$ncpus)
+    #addArchRThreads(RESOURCES$ncpus)
 
     writeMsg(str_glue("copy {proj_dir} {out_dir}"))
     unlink(out_dir, recursive = TRUE)
