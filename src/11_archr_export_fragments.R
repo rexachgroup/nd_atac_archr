@@ -14,7 +14,7 @@ SAMPLE_META <- "/geschwindlabshares/lchenprj01/nucseq_combined/data/snATAC_metad
 SUBSET_BIN <- system("which subset-bam_linux", intern = TRUE)
 SAMTOOLS_BIN <- system("which samtools", intern = TRUE)
 
-project_names <- c("precg_C7", "insula_C7")
+project_names <- c("precg_C7", "insula_C7", "precg_C2", "insula_C2")
 archr_project <- setNames(file.path(base_dir, paste0("peak_calling_", project_names)), project_names)
 
 RESOURCES <- list(
@@ -28,7 +28,17 @@ RESOURCES <- list(
 main <- function() {
     dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
     addArchRThreads(16)
-    subset_bams_dx(archr_project[[2]], project_names[[2]])
+    pwalk(list(archr_project = archr_project, project_name = project_names), subset_bams_dx)
+
+    #     walk(archr_project, function(x) {
+    #         project <- loadArchRProject(x)
+    #         meta <- project@cellColData %>%
+    #             as_tibble(rownames = "cell_ids")
+    #         
+    #         meta %>% group_by(Clinical.Dx) %>%
+    #             summarize(n()) %>%
+    #             print
+    #     })
 }
 
 subset_bams_dx <- function(archr_project, project_name) { 
@@ -38,10 +48,11 @@ subset_bams_dx <- function(archr_project, project_name) {
         as_tibble(rownames = "cell_ids")
 
     dx_meta <- meta %>%
-        filter(Clusters == "C7") %>%
-        group_by(Clinical.Dx, Sample) %>%
+        group_by(Sample, Clinical.Dx) %>%
         group_nest %>%
-        mutate(barcodes_path = file.path(out_dir, project_name, str_glue("{project_name}_{Clinical.Dx}_barcodes.csv")))
+        mutate(barcodes_path = file.path(out_dir, project_name, str_glue("{project_name}_{Sample}_{Clinical.Dx}_barcodes.csv")))
+
+    print(dx_meta)
 
     pmap(dx_meta, function(...) {
         cr <- list(...)
@@ -66,6 +77,8 @@ subset_bams_dx <- function(archr_project, project_name) {
             subset_cmd = str_glue("{SUBSET_BIN} --bam {bam} --cell-barcodes {barcodes_path} --out-bam {subset_bam} --cores 8")
         )
 
+    print(args_tb)
+
     walk(args_tb$subset_cmd, function(x) {
         print(x)
         if (system(x) != 0) { stop() }
@@ -85,9 +98,13 @@ subset_bams_dx <- function(archr_project, project_name) {
                 .sep = " "
             ))
         }))
+    
+    print(args_tb)
 
     walk(args_tb$dx_aggr, function(x) {
         print(x)
         if (system(x) != 0) { stop() }
     })
 }
+
+
