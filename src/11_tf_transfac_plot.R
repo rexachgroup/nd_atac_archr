@@ -2,9 +2,11 @@ liblist <- c("tidyverse", "batchtools", "readxl", "Seurat", "ArchR", "circlize",
 l <- lapply(liblist, require, character.only = TRUE, quietly = TRUE)
 
 base_dir <- normalizePath("../data/archr/atac-2020-all")
-proj_dir <- file.path(base_dir, "10_tf_transfac")
+proj_dir_c2 <- file.path(base_dir, "10_tf_transfac_c2")
+proj_dir_c7 <- file.path(base_dir, "10_tf_transfac_c7")
 base_out_dir <- file.path(base_dir, "11_tf_transfac_plot")
-cluster_args <- file.path(proj_dir, "args_tb.rds")
+cluster_args_c2 <- file.path(proj_dir_c2, "args_tb.rds")
+cluster_args_c7 <- file.path(proj_dir_c7, "args_tb.rds")
 
 RESOURCES <- list(
     ncpus = 8,
@@ -19,7 +21,9 @@ alert <- function() { system("tput bel") }
 
 main <- function() {
     dir.create(base_out_dir, recursive = TRUE, showWarnings = FALSE)
-    args_tb <- readRDS(cluster_args)
+    args_tb_c2 <- readRDS(cluster_args_c2)
+    args_tb_c7 <- readRDS(cluster_args_c7)
+    args_tb <- bind_rows(args_tb_c2, args_tb_c7)
     args_tb <- args_tb %>% mutate(
         proj_dir = out_dir,
         out_dir = file.path(base_out_dir, project_names)
