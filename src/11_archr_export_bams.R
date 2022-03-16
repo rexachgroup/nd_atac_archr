@@ -20,7 +20,8 @@ clusters <- tribble(
     "insula-ftd-c10-c12",   file.path(base_dir, "liger_integration_insula"),    c("C10", "C12"),    "bvFTD",
     "precg-ad-c7",          file.path(base_dir, "liger_integration_precg"),     c("C7"),            "AD",
     "precg-ad-c2",          file.path(base_dir, "liger_integration_precg"),     c("C2"),            "AD",
-    "precg-ftd-c2",         file.path(base_dir, "liger_integration_precg"),     c("C2"),            "bvFTD"
+    "precg-ftd-c2",         file.path(base_dir, "liger_integration_precg"),     c("C2"),            "bvFTD",
+    "precg-ctl-c2",         file.path(base_dir, "liger_integration_precg"),     c("C2"),            "Control"
 )
 
 main <- function() {
