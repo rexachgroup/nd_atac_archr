@@ -12,7 +12,7 @@ seurat_object_filter <- normalizePath("../data/subclusters_removed_byQC_final.xl
 
 main <- function() { 
     addArchRGenome("hg38")
-    addArchRThreads(16)
+    addArchRThreads(4)
 
     writeLines(str_glue("load {seurat_object}"))
     sobj <- readRDS(seurat_object)
@@ -48,7 +48,7 @@ main <- function() {
     project <- saveArchRProject(project, out_archr_project, dropCells = TRUE, load = TRUE)
     
     nATAC <- 40000
-    nRNA <- 25000
+    nRNA <- 40000
 
     project <- addGeneIntegrationMatrix(project,
         useMatrix = "GeneScoreMatrix",
@@ -64,32 +64,56 @@ main <- function() {
         nameGroup = "predictedGroup_Un",
         nameScore = "predictedScore_Un"
     )
-    saveArchRProject(project, out_archr_project, load = FALSE)
-    
-    clustering_col_ct_annotation <- sobj_filtered_cells %>% select(ct_subcluster, cluster_cell_type) %>%
-        filter(!duplicated(ct_subcluster), ct_subcluster %in% project$predictedGroup_Un) %>%
-        arrange(cluster_cell_type, ct_subcluster) %>%
-        as.data.frame %>%
-        column_to_rownames("ct_subcluster")
+    project <- saveArchRProject(project, out_archr_project, load = TRUE)
 
-    unconstrained_clust <- as.matrix(confusionMatrix(project$Clusters, project$predictedGroup_Un))
-    write_csv(as.data.frame(unconstrained_clust), file.path(out_archr_project, "unconstrained_clust.csv"))
-    # sort order for clustering: by cluster_cell_type for seurat clusters and by natural ordering for atac clusters
-    unconstrained_clust <- unconstrained_clust[str_sort(unique(project$Clusters), numeric = TRUE), as.character(rownames(clustering_col_ct_annotation))]
-    unconstrained_clust <- log10(unconstrained_clust + 1)
+    colorbar_tb <- colorbar_ct_tb(sobj_filtered_cells)
+    clustering_mat <- clustering_data_mat(project, colorbar_tb)
+    
+    write_csv(as.data.frame(clustering_mat), file.path(out_archr_project, "clustering_data_mat.csv"))
+
+    clustering_log_mat <- log10(clustering_mat + 1)
     clustering_heatmap <- pheatmap(
-        unconstrained_clust, 
+        clustering_log_mat, 
         main = str_glue("nATAC = {nATAC}, nRNA = {nRNA}, precg cells -- log10(n + 1) of overlap"),
         border_color = "black", 
-        annotation_col = clustering_col_ct_annotation, 
-        annotation_colors = list(cluster_cell_type = paletteDiscrete(clustering_col_ct_annotation$cluster_cell_type)),
+        annotation_col = colorbar_tb, 
+        annotation_colors = list(cluster_cell_type = paletteDiscrete(colorbar_tb$cluster_cell_type)),
         cluster_rows = TRUE, 
         cluster_cols = FALSE
     )
-    pdf(file.path(out_archr_project, "Plots", "gene_integration_matrix.pdf"), width = 0.30 * ncol(unconstrained_clust), height = 0.30 * nrow(unconstrained_clust))
+
+    pdf(file.path(out_archr_project, "Plots", "gene_integration_matrix.pdf"), width = 0.30 * ncol(clustering_log_mat), height = 0.30 * nrow(clustering_log_mat))
     print(clustering_heatmap)
     graphics.off()
 
+}
+
+colorbar_ct_tb <- function(seurat_meta) {
+    seurat_meta %>%
+        select(ct_subcluster, cluster_cell_type) %>%
+        group_by(ct_subcluster) %>%
+        slice_head(n = 1) %>%
+        arrange(cluster_cell_type, ct_subcluster) %>%
+        as.data.frame %>%
+        column_to_rownames("ct_subcluster")
+}
+
+clustering_data_mat <- function(project, colorbar_ct_tb) {
+    mat <- as.matrix(confusionMatrix(project$Clusters, project$predictedGroup_Un))
+    clusters <- unique(project$Clusters)
+    missing_predicted <- setdiff(rownames(colorbar_ct_tb), project$predictedGroup_Un)
+    # add clusters that aren't present in predictedGroup_Un
+    writeLines(str_glue("Missing subcluster in prediction: {missing_predicted}. Setting subcluster cols to 0."))
+    blankmat <- matrix(
+        0, 
+        nrow = length(clusters), 
+        ncol = length(missing_predicted),
+        dimnames = list(clusters, missing_predicted)
+    )
+    mat <- cbind(mat, blankmat)
+    # sort order for clustering: by natural ordering for atac clusters and cluster_cell_type for seurat clusters
+    mat <- mat[str_sort(clusters, numeric = TRUE), as.character(rownames(colorbar_ct_tb))]
+    return(mat)
 }
 
 if (!interactive()) {
