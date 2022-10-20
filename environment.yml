@@ -11,9 +11,10 @@ dependencies:
   - r-devtools
   - r-biocmanager
   - r-ragg
-  - r-seurat
+  - r-seurat=4.0.0
   - r-pheatmap
   - r-patchwork
+  - hdf5=1.8.20
   - bioconductor-jaspar2018
   - dvc
   - macs2
