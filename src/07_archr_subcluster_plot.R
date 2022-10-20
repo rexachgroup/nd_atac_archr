@@ -48,7 +48,7 @@ main <- function() {
 
     pmap(cluster_args_tb, function(...) {
         cr <- list(...)    
-        filelist <- list.files(str_glue("{cr$proj_dir}/Plots/"), pattern = "*.png", full.names = TRUE)
+        filelist <- list.files(str_glue("{cr$proj_dir}/Plots/"), full.names = TRUE)
         dir.create(file.path(out_dir, cr$proj_name), showWarnings = FALSE)
         file.copy(filelist, file.path(out_dir, cr$proj_name), overwrite = TRUE)
     })
