@@ -1,8 +1,16 @@
-source("00_CONSTANTS.R")
 library(batchtools)
 library(tidyverse)
 library(readxl)
+
 FASTQ_DIR <- c(normalizePath("../fastqs/PreCG_final_ATAC2020/DG_32_10X_ATAC_S-20-1357_GAP233/"), normalizePath("../fastqs/PreCG_final_ATAC2020/DG_S-20-0434_1_pool_GAP169"))
+FASTQ_META <- normalizePath("../data/snATAC_metadata_summary_2021_d.xlsx")
+
+CELLRANGER_ATAC_COUNT_DIR <- normalizePath("../data/cellranger-atac-count/precg-atac-2020")
+CELLRANGER_ATAC_COUNT_BATCHTOOLS <- paste0(CELLRANGER_ATAC_COUNT_DIR, "-batchtools")
+CELLRANGER_ATAC_BIN <- "/geschwindlabshares/lchenprj01/software/seq/cellranger-atac-1.2.0/cellranger-atac"
+CELLRANGER_ATAC_REFERENCE <- "/geschwindlabshares/lchenprj01/software/seqdata/cellranger-atac/refdata-cellranger-atac-GRCh38-1.2.0"
+
+GIGA_TO_GIBI <- (1000 ** 3) / (1024 ** 3)
 
 if (!dir.exists(CELLRANGER_ATAC_COUNT_BATCHTOOLS)) {
     reg <- makeRegistry(CELLRANGER_ATAC_COUNT_BATCHTOOLS)

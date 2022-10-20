@@ -1,10 +1,14 @@
-source("00_CONSTANTS.R")
 library(batchtools)
 library(tidyverse)
+
+FASTQ_DIR <- c(normalizePath("../fastqs/PreCG_final_ATAC2020/DG_32_10X_ATAC_S-20-1357_GAP233/"), normalizePath("../fastqs/PreCG_final_ATAC2020/DG_S-20-0434_1_pool_GAP169"))
+FASTQ_META <- normalizePath("../data/snATAC_metadata_summary_2021_d.xlsx")
 
 CELLRANGER_ATAC_AGGR_ID <- "precg-atac-2020-nonormalize"
 CELLRANGER_ATAC_AGGR_DIR <- normalizePath(file.path("../data/cellranger-atac-aggr"))
 CELLRANGER_ATAC_AGGR_BATCHTOOLS <- paste0(file.path(CELLRANGER_ATAC_AGGR_DIR, CELLRANGER_ATAC_AGGR_ID), "-batchtools")
+CELLRANGER_ATAC_BIN <- "/geschwindlabshares/lchenprj01/software/seq/cellranger-atac-1.2.0/cellranger-atac"
+CELLRANGER_ATAC_REFERENCE <- "/geschwindlabshares/lchenprj01/software/seqdata/cellranger-atac/refdata-cellranger-atac-GRCh38-1.2.0"
 
 # count_reg <- loadRegistry(CELLRANGER_ATAC_COUNT_BATCHTOOLS)
 fastqs <- list.dirs(FASTQ_DIR, recursive = FALSE)
