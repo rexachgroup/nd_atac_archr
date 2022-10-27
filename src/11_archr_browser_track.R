@@ -21,8 +21,13 @@ peak_tb <- tibble(
     end = c("98616428", "98616928")
 )
 
+peak_tb <- tribble(
+    ~name,      ~seqnames,  ~start,     ~end,
+    "IL15",     "chr4",     141636599,  141733987,
+)
+
 plot_param <- tibble(
-    tileSize = c(10, 50, 250)
+    tileSize = c(100)
 )
 
 main <- function() {
@@ -62,7 +67,6 @@ main <- function() {
             cr <- list(...)
             pmap(plot_param, function(...) {
                 pr <- list(...)
-                browser()
                 title <- str_glue("{cr$project_names} {deparse(pr)} atac signal sum, split dx")
                 print(title)
                 track_obj <- plotBrowserTrack(cr$proj, region = cr$peak_sub, groupBy = "Clinical.Dx", ...)
