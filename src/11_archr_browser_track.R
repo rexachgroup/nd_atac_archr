@@ -15,14 +15,10 @@ archr_project <- list(
 
     
 )
-peak_tb <- tibble(
-    seqnames = c("chr7", "chr7"),
-    start = c("98616427", "98616927"),
-    end = c("98616428", "98616928")
-)
 
 peak_tb <- tribble(
     ~name,      ~seqnames,  ~start,     ~end,
+    "SPI1",     "chr11",    47374321,   47374821,
     "IL15",     "chr4",     141636599,  141733987,
 )
 
@@ -77,8 +73,8 @@ main <- function() {
     pwalk(tb, function(...) {
         cr <- list(...)
         out <- str_glue("{out_dir}/{cr$project_names}_track.pdf")
-        pdf(out)
-        print(cr$track_obj)
+        pdf(out, width = 20, height = 20)
+        tryCatch(print(cr$track_obj), error = print)
         dev.off()
     })
 }
