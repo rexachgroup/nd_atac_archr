@@ -11,6 +11,7 @@ out_dir <- file.path(base_dir, "10_tf_transfac_c2")
 scenic_motif_db <- normalizePath("../data/scenic.pfm.rda")
 motif_regulon_filter <- normalizePath("../data/excitatory_preCGregulons_genes_GRNBoost_weights.csv")
 transfac_motif_db <- normalizePath("../data/transfac_pwm.rds")
+combined_motif_rds <- file.path(base_dir, "00_import_scenic_transfac_db/scenic_transfac_db.rds")
 project_names <- c("precg_C2", "insula_C2")
 archr_project <- setNames(file.path(base_dir, paste0("peak_calling_", project_names)), project_names)
 out_archr_project <- setNames(file.path(out_dir, paste0("chrom_var_", project_names)), project_names)
@@ -43,20 +44,7 @@ main <- function() {
 
     args_tb <- tibble(project_names = project_names, proj_dir = archr_project, out_dir = out_archr_project)
    
-    # load scenic motif db
-
-    load(scenic_motif_db)
-    motif_tb <- read_csv(motif_regulon_filter)
-    pwm <- TFBSTools::toPWM(pfm)
-    scenic_tf <- grep_tf(pwm, motif_tb$TF)
-
-    # load transfac motif db
-    
-    transfac_pwm <- readRDS(transfac_motif_db)
-    transfac_tf <- grep_tf(transfac_pwm, motif_tb$TF)
-    combined_motiflist <- c(scenic_tf, transfac_tf)
-    stopifnot(names(combined_motiflist) == name(combined_motiflist))
-    write.csv(name(combined_motiflist), file.path(out_dir, "filtered_motifs.csv"))
+    combined_motiflist <- readRDS(combined_motif_rds)
 
     clearRegistry()
     reg$packages <- liblist
@@ -80,15 +68,6 @@ main <- function() {
         file.copy(motif_plot, file.path(out_dir, str_glue("chrom_var_{n}_dx.pdf")))
     })
     saveRDS(args_tb, file.path(out_dir, "args_tb.rds"))
-}
-
-grep_tf <- function(pwmatrixlist, motif_names) {
-    names(pwmatrixlist) <- name(pwmatrixlist)
-    pwm_indices <- unlist(map(unique(motif_names), function(tf) {
-        grep(tf, name(pwmatrixlist), fixed = TRUE)
-    }))
-    pwm_indices <- pwm_indices[!duplicated(pwm_indices)]
-    return(pwmatrixlist[pwm_indices])
 }
 
 tf_worker <- function(proj_dir, out_dir, motif_pwmlist) {
@@ -117,38 +96,6 @@ tf_worker <- function(proj_dir, out_dir, motif_pwmlist) {
 
     endTime <- Sys.time()
     writeMsg(str_glue("{format(endTime - startTime)}"))
-}
-
-motif_overlap <- function(project) {
-    load(scenic_motif_db)
-
-    writeMsg("TF motif annotations")
-    pwm <- TFBSTools::toPWM(pfm)
-    print(class(pwm))
-    names(pwm) <- name(pwm)
-    writeMsg("Subset to 500")
-    pwm <- pwm[1:500]
-    
-    peakSet <- project@peakSet
-    genome <- project@genomeAnnotation$genome
-
-    motifPositions <- motifmatchr::matchMotifs(
-        pwms = pwm,
-        subject = peakSet,
-        genome = genome,
-        out = "positions",
-        p.cutoff = 5e-05,
-        w = 7
-    )
-
-    allPositions <- unlist(motifPositions)
-    overlapMotifs <- findOverlaps(peakSet, allPositions, ignore.strand = TRUE)
-    motifMat <- Matrix::sparseMatrix(
-        i = queryHits(overlapMotifs),
-        j = match(names(allPositions),names(motifPositions))[subjectHits(overlapMotifs)],
-        x = rep(TRUE, length(overlapMotifs)),
-        dims = c(length(peakSet), length(motifPositions))
-    )
 }
 
 tf_dx_marker_signif <- function(proj_dir) {
