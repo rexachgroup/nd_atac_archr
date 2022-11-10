@@ -137,6 +137,7 @@ footprint_dx_pairwise <- function(project, motif_granges) {
 }
 
 # Get all data up to plotting -- basically plotFootprint / .ggFootprint without ggplot calls
+# Note calls to ArchR internal functions .centerRollMean, .groupMean, .groupSds
 get_footprint_data <- function(seFoot, smooth_window = 5, flank = 250, flank_norm = 50) {
     foot_names <- names(assays(seFoot))
     row_data <- rowData(seFoot)
@@ -153,8 +154,8 @@ get_footprint_data <- function(seFoot, smooth_window = 5, flank = 250, flank_nor
         bias_row_df <- row_data[bias_rows, ]
 
         writeMsg(str_glue("applying smoothing window={smooth_window} to footprint"))
-        foot_mat <- apply(foot_mat, 2, function(x) .centerRollMean(x, smooth_window))
-        bias_mat <- apply(bias_mat, 2, function(x) .centerRollMean(x, smooth_window))
+        foot_mat <- apply(foot_mat, 2, function(x) ArchR:::.centerRollMean(x, smooth_window))
+        bias_mat <- apply(bias_mat, 2, function(x) ArchR:::.centerRollMean(x, smooth_window))
 
         writeMsg("normalizing by flanking regions")
         idx <- which(abs(foot_row_df$x) >= flank - flank_norm)
@@ -165,11 +166,11 @@ get_footprint_data <- function(seFoot, smooth_window = 5, flank = 250, flank_nor
         foot_mat <- foot_mat / bias_mat
 
         writeMsg("mean / sd for footprint")
-        foot_mat_mean <- .groupMeans(foot_mat, col_data$Group)
-        foot_mat_sd <- .groupSds(foot_mat, col_data$Group)
-        bias_mat_mean <- .groupMeans(bias_mat, col_data$Group)
-        bias_mat_sd <- .groupSds(bias_mat, col_data$Group)
-        smooth_foot <- rowMaxs(apply(foot_mat_mean, 2, function(x) .centerRollMean(x, 11)))
+        foot_mat_mean <- ArchR:::.groupMeans(foot_mat, col_data$Group)
+        foot_mat_sd <- ArchR:::.groupSds(foot_mat, col_data$Group)
+        bias_mat_mean <- ArchR:::.groupMeans(bias_mat, col_data$Group)
+        bias_mat_sd <- ArchR:::.groupSds(bias_mat, col_data$Group)
+        smooth_foot <- rowMaxs(apply(foot_mat_mean, 2, function(x) ArchR:::.centerRollMean(x, 11)))
 
         plot_ids <- seq_len(nrow(foot_mat_mean))
         plot_foot_df <- lapply(seq_len(ncol(foot_mat_mean)), function(x) {
@@ -192,49 +193,6 @@ get_footprint_data <- function(seFoot, smooth_window = 5, flank = 250, flank_nor
         
         return(list(foot_df = plot_foot_df, bias_df = plot_bias_df, foot_smooth_df = smooth_foot))
     }) %>% setNames(., foot_names)
-}
-
-# HiddenUtils.R::.centerRollMean
-.centerRollMean <- function(v = NULL, k = NULL) {
-    o1 <- data.table::frollmean(v, k, align = "right", na.rm = FALSE)
-    if(k%%2==0){
-        o2 <- c(rep(o1[k], floor(k/2)-1), o1[-seq_len(k-1)], rep(o1[length(o1)], floor(k/2)))
-    }else if(k%%2==1){
-        o2 <- c(rep(o1[k], floor(k/2)), o1[-seq_len(k-1)], rep(o1[length(o1)], floor(k/2)))
-    }else{
-        stop("Error!")
-    }
-    o2
-}
-
-# HiddenUtils.R::.groupMeans
-.groupMeans <- function(mat = NULL, groups=NULL, na.rm = TRUE, sparse = FALSE){
-    stopifnot(!is.null(groups))
-    stopifnot(length(groups)==ncol(mat))
-    gm <- lapply(unique(groups), function(x){
-        if(sparse){
-             Matrix::rowMeans(mat[,which(groups==x),drop=F], na.rm=na.rm)
-        }else{
-             rowMeans(mat[,which(groups==x),drop=F], na.rm=na.rm)
-        }
-    }) %>% Reduce("cbind",.)
-    colnames(gm) <- unique(groups)
-    return(gm)
-}
-
-# HiddenUtils.R::.groupSds
-.groupSds <- function(mat = NULL, groups = NULL, na.rm = TRUE, sparse = FALSE){
-    stopifnot(!is.null(groups))
-    stopifnot(length(groups)==ncol(mat))
-    gs <- lapply(unique(groups), function(x){
-        if (sparse){
-            matrixStats::rowSds(as.matrix(mat[, which(groups == x), drop = F]), na.rm = na.rm)
-        }else{
-            matrixStats::rowSds(mat[, which(groups == x), drop = F], na.rm = na.rm)
-        }
-    }) %>% Reduce("cbind",.)
-    colnames(gs) <- unique(groups)
-    return(gs)
 }
 
 plot_footprint_data <- function(footprint_list) {
