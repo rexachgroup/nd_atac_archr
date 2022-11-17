@@ -17,13 +17,16 @@ archr_project <- list(
 )
 
 peak_tb <- tribble(
-    ~name,      ~seqnames,  ~start,     ~end,
-    "SPI1",     "chr11",    47374321,   47374821,
-    "IL15",     "chr4",     141636599,  141733987,
+    ~name,      ~seqnames,  ~start,     ~end,       ~offset,
+    "CHMP2B",   "chr3",     87227271,   87255548,   398,
+    "PSAP",     "chr10",    71816298,   71851375,   67,
+    "PSAP",     "chr10",    71816298,   71851375,   -9263,
+    "C9orf72",  "chr9",     27546545,   27573866,   -346,
+    "VCP",      "chr9",     35056064,   35056064,  1150
 )
 
 plot_param <- tibble(
-    tileSize = c(100)
+    tileSize = c(50)
 )
 
 main <- function() {
@@ -42,40 +45,51 @@ main <- function() {
         project_names = names(archr_project),
         proj_dir = archr_project,
     )
-    sub_gr <- GRanges(peak_tb)
-    #     peak_dx_tb <- map(dx_peaks_tb, function(tb) {
-    #         unlist(tb) %>%
-    #             as.data.frame %>%
-    #             rownames_to_column("dxpeak") %>%
-    #             as_tibble
-    #     }) %>% bind_rows
     
     tb <- tb %>% mutate(proj = map(proj_dir, loadArchRProject))
     tb <- tb %>% mutate(peaks = map(proj, getPeakSet))
-    tb <- tb %>%
-        mutate(peak_sub = map(peaks, function(p) {
-            peaks <- subsetByOverlaps(p, sub_gr, ignore.strand = T)
-            flank(peaks, width = 5000, both = T)
-        }))
+
+    # iterate over every row in peak_tb and plot_param.
+    # If offset does not fall in end - start, extend in that direction, then extend 2000 kb.
+    peak_coords <- peak_tb %>%
+        pmap(function(...) {
+            cr <- data.frame(...)
+            start <- cr$start
+            end <- cr$end
+            if (cr$offset < 0) {
+                start <- start + cr$offset
+            } else if (cr$offset > (end - start)){
+                end <- end + (cr$offset - (end - start))
+            }
+            cr$start <- start - 2000
+            cr$end <- end + 2000
+            return(cr)
+        }) %>%
+        bind_rows()
+    plot_gr <- GRanges(peak_coords)
 
     tb <- tb %>%
         mutate(track_obj = pmap(., function(...) {
             cr <- list(...)
             pmap(plot_param, function(...) {
                 pr <- list(...)
-                title <- str_glue("{cr$project_names} {deparse(pr)} atac signal sum, split dx")
-                print(title)
-                track_obj <- plotBrowserTrack(cr$proj, region = cr$peak_sub, groupBy = "Clinical.Dx", ...)
-                wrap_plots(track_obj) + plot_annotation(title = title)
+                map(1:length(plot_gr), function(range_i) {
+                    gr <- plot_gr[range_i,]
+                    title <- str_glue("{cr$project_names} {deparse(pr)} {gr$name} atac signal sum, split dx")
+                    track_obj <- plotBrowserTrack(cr$proj, region = gr, groupBy = "Clinical.Dx", ...)
+                    print(title)
+                    return(wrap_plots(track_obj) + plot_annotation(title = title))
+                })
             })
         }))
 
     pwalk(tb, function(...) {
         cr <- list(...)
         out <- str_glue("{out_dir}/{cr$project_names}_track.pdf")
-        pdf(out, width = 20, height = 20)
+        pdf(out, width = 10, height = 10)
         tryCatch(print(cr$track_obj), error = print)
         dev.off()
     })
 }
 
+main()
