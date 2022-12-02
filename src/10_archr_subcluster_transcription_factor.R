@@ -35,10 +35,12 @@ main <- function() {
     }
     setwd(out_dir)
     cluster_args_tb <- tibble(archr_project = unlist(archr_project), name = names(archr_project)) %>%
-        left_join(., tibble(motif_type = c("scenic", "jaspar")), by = character()) %>%
+        left_join(., tibble(motif_type = c("custom", "jaspar")), by = character()) %>%
         mutate(out_proj = file.path(out_dir, str_glue("{name}-{motif_type}"))) %>%
         print()
-    custom_motifs <- readRDS(combined_motif_rds)
+    jaspar_motifs <- TFBSTools::getMatrixSet(JASPAR2018::JASPAR2018, list(collection = "CORE"))
+    custom_motifs <- TFBSTools::toPWM(jaspar_motifs[str_which(name(jaspar_motifs), "NFE|maf-S")])
+    #custom_motifs <- readRDS(combined_motif_rds)
     
     writeMsg("batchtools tf derivation")
     reg$packages <- liblist
@@ -48,7 +50,7 @@ main <- function() {
         function(...) {
             cr <- list(...)
             print(cr)
-            tf_subcluster_worker(cr$archr_project, cr$out_proj, cr$motif_type, custom_motifs)
+            tf_worker(cr$archr_project, cr$out_proj, cr$motif_type, custom_motifs)
         },
         args = cluster_args_tb
     )
@@ -58,21 +60,8 @@ main <- function() {
     saveRDS(cluster_args_tb, file.path(out_dir, "tb.rds"))
 
     cluster_args_tb <- cluster_args_tb %>%
-        mutate(proj_meta = pmap(.,function(...) {
-            cr <- list(...)
-            project <- loadArchRProject(path = cr$out_proj)
-            proj_meta <- as_tibble(proj@cellColData, rownames = "barcode")
+        mutate(proj = map(out_proj, loadArchRProject))
 
-            proj_meta <- proj_meta %>%
-                group_by(Clusters) %>%
-                group_nest(keep = T) %>%
-                mutate(
-                    cluster_project = str_glue("{cr$out_proj}-{unique(Clusters)}"),
-                    proj = map(cluster_project, loadArchRProject)
-                )
-        }))
-
-    cluster_args_tb <- cluster_args_tb %>% unnest(proj_meta)
     cluster_args_tb <- cluster_args_tb %>% mutate(name = basename(as.character(cluster_project)))
     writeMsg("MotifMatrix dx signif")
     cluster_args_tb <- cluster_args_tb %>% mutate(motif_dx_signif = map(proj, tf_signif_motif_dx))
@@ -104,7 +93,7 @@ main <- function() {
                 marker_assays <- setNames(Reduce(cbind, assays(marker_signif)), nm = names(assays(marker_signif)))
                 marker_tb <- as.data.frame(cbind(rd, marker_assays))
                 glimpse(marker_tb)
-                out_path <- file.path(out_dir, str_glue("{cr$name}_{colnames(marker_signif)}.csv"))
+                out_path <- file.path(out_dir, str_glue("{cr$name}-{cr$motif_type}-{colnames(marker_signif)}.csv"))
                 writeMsg(str_glue("export motif dx test to {out_path}"))
                 write_csv(marker_tb, out_path)
             })
@@ -112,8 +101,8 @@ main <- function() {
 }
 
 devmat_jaspar <- function(project) {
-    writeMsg("JASPAR TF motif annotations")
-    project <- addMotifAnnotations(project, motifSet =  "JASPAR2018", species = "Homo sapiens", name = "Motif", force = TRUE)
+    writeMsg("JASPAR all-species TF motif annotations")
+    project <- addMotifAnnotations(project, motifSet =  "JASPAR2018", name = "Motif", force = TRUE)
     writeMsg("background peaks")
     project <- addBgdPeaks(project, force = TRUE)
     writeMsg("derivations / chromVAR matrix")
@@ -141,7 +130,6 @@ tf_worker <- function(proj_dir, out_dir, motif_type, custom_db) {
     dir.create(plot_dir, recursive = TRUE, showWarnings = FALSE)
     setwd(out_dir)
 
-
     project <- saveArchRProject(project, out_dir, load = TRUE, dropCells = F)
     if (motif_type == "jaspar") {
         project <- devmat_jaspar(project)
@@ -151,7 +139,6 @@ tf_worker <- function(proj_dir, out_dir, motif_type, custom_db) {
     project <- saveArchRProject(project, out_dir, load = FALSE)
     endTime <- Sys.time()
     writeMsg(str_glue("{format(endTime - startTime)}"))
-    return(proj_list)
 }
 
 tf_subcluster_worker <- function(proj_dir, out_dir, motif_type, scenic_db) {
