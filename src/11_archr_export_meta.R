@@ -24,12 +24,20 @@ main <- function() {
         arrange(region, Clinical.Dx) %>%
         write_csv(file.path(out_dir, "sample_summary.csv"))
 
+    # sample_meta
     cluster_obj@cellColData %>%
         as_tibble %>%
         group_by(Sample, region, Clinical.Dx) %>%
         select(Sample, Clinical.Dx, Autopsy.ID, region, Age, Sex, PMI) %>%
         slice_head(n = 1) %>%
         write_csv(file.path(out_dir, "sample_meta.csv"))
+    # sample_ct
+    cluster_obj@cellColData %>%
+        as_tibble %>%
+        group_by(Sample, region, Clinical.Dx) %>%
+        summarize(n = n()) %>%
+        write_csv(file.path(out_dir, "sample_ct.csv"))
+
 
     subcluster_objs <- subcluster_objs %>%
         mutate(obj = map(path, loadArchRProject, showLogo = F))
