@@ -8,9 +8,6 @@ print(unlist(l))
 base_dir <- normalizePath("../data/archr/atac-2020-all")
 out_dir <- file.path(base_dir, "10_tf_transfac_c2")
 
-scenic_motif_db <- normalizePath("../data/scenic.pfm.rda")
-motif_regulon_filter <- normalizePath("../data/excitatory_preCGregulons_genes_GRNBoost_weights.csv")
-transfac_motif_db <- normalizePath("../data/transfac_pwm.rds")
 combined_motif_rds <- file.path(base_dir, "00_import_scenic_transfac_db/scenic_transfac_db.rds")
 project_names <- c("precg_C2", "insula_C2")
 archr_project <- setNames(file.path(base_dir, paste0("peak_calling_", project_names)), project_names)
@@ -36,11 +33,6 @@ main <- function() {
     } else {
         reg <- loadRegistry(batchtools, writeable = TRUE)
     }
-    #     walk(out_archr_project, function(x) {
-    #         if(dir.exists(x)) {
-    #             unlink(x, recursive = TRUE)
-    #         }
-    #     })
 
     args_tb <- tibble(project_names = project_names, proj_dir = archr_project, out_dir = out_archr_project)
    
@@ -71,10 +63,8 @@ main <- function() {
 }
 
 tf_worker <- function(proj_dir, out_dir, motif_pwmlist) {
-    #l <- lapply(liblist, function(x) suppressPackageStartupMessages(require(x, character.only = TRUE, quietly = TRUE)))
     startTime <- Sys.time()
     addArchRGenome("hg38")
-    #addArchRThreads(RESOURCES$ncpus)
 
     writeMsg(str_glue("copy {proj_dir} {out_dir}"))
     unlink(out_dir, recursive = TRUE)
