@@ -10,12 +10,28 @@ archr_project <- list(
     "subcluster_peak_call_insula-c25" = file.path(base_dir, "09_archr_subcluster_peak_calling", "peak_call_insula-c25")
 )
 
+# peak_tb <- tribble(
+#     ~name,              ~seqnames,  ~start,     ~end,       ~offset,
+#     #"VCP",              "chr9",     35056064,   35073249,   1150,
+#     #"rs78011262",       "chr17",    45620000,   45835900,   0,
+#     #"rs2045091",        "chr8",     130052000,  130063700,  0,
+#     #"NPTX2",             "chr7",    98616428,   98629868,   0,
+#     "NPTX2/RORB",       "chr7",     98616428,   98617000,   0,
+# 
+# )
 peak_tb <- tribble(
-    ~name,              ~seqnames,  ~start,     ~end,       ~offset,
-    "VCP",              "chr9",     35056064,   35073249,   1150,
-    "rs78011262",       "chr17",    45620000,   45835900,   0,
-    "rs2045091",        "chr8",     130052000,  130063700,  0,
-    "NPTX2",             "chr7",     98616428,   98629868,   0,
+    ~name,          ~seqnames,  ~start,     ~end,
+    "HLA-C reg 2",  "chr6",     31268903,   31269549,
+    "MICB reg 2",   "chr6",     31498145,   31501711
+)
+
+peak_nm <- c(
+    "HLA-A",
+    "HLA-B",
+    "HLA-C",
+    "MICB",
+    "KRLC1",
+    "KLRC2"
 )
 
 # plot_param <- tibble(
@@ -36,24 +52,10 @@ main <- function() {
     tb <- tb %>% mutate(proj = map(proj_dir, loadArchRProject))
     tb <- tb %>% mutate(peaks = map(proj, getPeakSet))
 
-    # annot <- getGenomeAnnotation(tb$proj[[1]])
-    # iterate over every row in peak_tb and plot_param.
-    # If offset does not fall in end - start, extend in that direction, then extend 2000 kb.
-    peak_coords <- peak_tb %>%
-        pmap(function(...) {
-            cr <- data.frame(...)
-            start <- cr$start
-            end <- cr$end
-            if (cr$offset < 0) {
-                start <- start + cr$offset
-            } else if (cr$offset > (end - start)){
-                end <- end + (cr$offset - (end - start))
-            }
-            cr$start <- start - 2000
-            cr$end <- end + 2000
-            return(cr)
-        }) %>%
-        bind_rows()
+    annot <- getGeneAnnotation(tb$proj[[1]])
+    peak_tb_genes <- annot_lookup(annot, peak_nm)
+    peak_tb <- bind_rows(peak_tb_genes, peak_tb)
+    peak_coords <- extend_coords(peak_tb)
 
     plot_gr <- GRanges(peak_coords)
 
@@ -70,6 +72,37 @@ main <- function() {
         tryCatch(print(cr$track_obj), error = print)
         dev.off()
     })
+    graphics.off()
+}
+
+# Lookup gene coords in ArchR annot.
+annot_lookup <- function(annot, gene_names) {
+    annot$gene %>%
+        as.data.frame() %>%
+        dplyr::filter(symbol %in% gene_names) %>%
+        mutate(name = symbol) %>%
+        select(name, seqnames, start, end)
+}
+
+# iterate over every row in peak_tb.
+# If offset does not fall in end - start, extend in that direction.
+# Finally, extend 2000 kb.
+extend_coords <- function(df) {
+    pmap(df, function(...) {
+        cr <- data.frame(...)
+        start <- cr$start
+        end <- cr$end
+        if (exists("cr$offset")) {
+            if (cr$offset < 0) {
+                start <- start + cr$offset
+            } else if (cr$offset > (end - start)){
+                end <- end + (cr$offset - (end - start))
+            }
+        }
+        cr$start <- start - 2000
+        cr$end <- end + 2000
+        return(cr) 
+    }) %>% bind_rows()
 }
 
 # For each archr project and peak loation, call plotBrowserTrack across 
@@ -86,7 +119,7 @@ plot_browser_tracks <- function(project, project_name, plot_grange, tileSize = 5
     map(1:length(plot_gr), function(range_i) {
         plot_range <- plot_gr[range_i, ]
 
-        data_title <- str_glue("{project_name} {plot_range$name} all cluster atac signal sum")
+        data_title <- str_glue("{project_name} {plot_range$name} all cluster atac signal sum, split cluster")
         data_plot <- wrap_plots(plotBrowserTrack(project, region = plot_range, tileSize = tileSize)) + plot_annotation(title = data_title)
 
         dx_title <- str_glue("{project_name} {plot_range$name} all cluster atac signal sum, split dx") 
@@ -97,7 +130,7 @@ plot_browser_tracks <- function(project, project_name, plot_grange, tileSize = 5
         cluster_split_plots <- pmap(cluster_group_meta, function(...) {
             m <- list(...)
             subset_proj <- project[, m$barcode]
-            title <- str_glue("{project_name} {plot_range$name} {m$Clusters} only atac signal sum, split dx") 
+            title <- str_glue("{project_name} {plot_range$name} only {m$Clusters} atac signal sum, split dx") 
             track_obj <- plotBrowserTrack(subset_proj, region = plot_range, groupBy = "Clinical.Dx", tileSize = tileSize)
             return(wrap_plots(track_obj) + plot_annotation(title = title))
         })
