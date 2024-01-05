@@ -1,5 +1,6 @@
-liblist <- c("tidyverse", "batchtools", "readxl", "Seurat", "ArchR", "pheatmap", "patchwork")
+liblist <- c("tidyverse", "batchtools", "readxl", "Seurat", "ArchR", "pheatmap", "patchwork", "future.apply")
 l <- lapply(liblist, require, character.only = TRUE, quietly = TRUE)
+options(future.globals.maxSize = Inf)
 
 SAMPLE_META <- normalizePath("../data/snATAC_metadata_summary_2021_e.xlsx")
 base_dir <- normalizePath("../data/archr/atac-2020-all")
@@ -17,7 +18,7 @@ writeMsg <- function(msg) {
 }
 
 main <- function() {
-    addArchRThreads()
+    addArchRThreads(16)
     addArchRGenome("hg38")
     writeLines(str_glue("load {archr_project}"))
     project <- loadArchRProject(path = archr_project)
@@ -112,6 +113,12 @@ main <- function() {
         testMethod = "wilcoxon"
     )
     saveRDS(marker_genescores, file.path(out_archr_project, "marker_genescores.rds"))
+    marker_df <- as.list(getMarkers(marker_genescores))
+    marker_tb <-  map(marker_df, as.data.frame) %>%
+        setNames(nm = names(marker_df)) %>%
+        bind_rows(.id = "Cluster") %>%
+        as.tibble
+    write_csv(marker_tb, file.path(out_archr_project, "marker_genescores.csv"))
 
     saveArchRProject(project, out_archr_project, load = FALSE)
 }
