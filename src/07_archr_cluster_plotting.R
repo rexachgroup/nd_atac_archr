@@ -12,6 +12,7 @@ celltype_markers <- normalizePath("../ext/20210128_cell_markers_noependymial.csv
 marker_genescore_tb <- file.path(out_archr_project, "marker_genescores.rds")
 
 main <- function() { 
+    addArchRThreads(8)
     addArchRGenome("hg38")
     writeLines(str_glue("load {out_archr_project}"))
     project <- loadArchRProject(path = out_archr_project)
@@ -142,6 +143,27 @@ main <- function() {
         addDOC = FALSE,
         width = 4, height = 4)
     graphics.off()
+    
+    project@cellColData$cluster_group <- str_glue("{project@cellColData$Clusters}-{project@cellColData$Clinical.Dx}-{project@cellColData$region}")
+    #     marker_tracks <- plotBrowserTrack(project,
+    #         groupBy = "cluster_group",
+    #         geneSymbol = c("CUX2", "ZMAT4", "REST", "NSF", "RORB", "SAT2B", "NRGN")
+    #     )
+    cells_f <- project@cellColData %>%
+        as.data.frame %>%
+        rownames_to_column("barcode") %>%
+        filter(Clusters %in% paste("C", 18:25, sep = ""))
+    proj_subset <- subsetArchRProject(project, cells = cells_f$barcode, force = T)
+    marker_tracks <- plotBrowserTrack(proj_subset,
+        groupBy = "cluster_group",
+        geneSymbol = c("GLRA2", "STXBP5L", "ANO4", "FRMPD4", "SAMD12", "ATP8A2")
+    )
+    
+    plotPDF(marker_tracks,
+        name = "marker_tracks_cluster_astro.pdf",
+        project = proj_subset,
+        addDOC = FALSE,
+        width = 4, height = 20)
 }
 
 plot_individual_meta_lvls <- function(project, column, type = "ggPoint") {
