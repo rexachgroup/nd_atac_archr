@@ -10,7 +10,7 @@ CELLRANGER_COUNT_DIRS <- c(
     "/geschwindlabshares/lchenprj01/nucseq_nd_dpolioud/analysis/ATAC"
 )
 
-SAMPLE_META <- "/geschwindlabshares/lchenprj01/nucseq_combined/data/snATAC_metadata_summary_2021_d.xlsx"
+SAMPLE_META <- "../data/snATAC_metadata_summary_2021_f.xlsx"
 SUBSET_BIN <- system("which subset-bam_linux", intern = TRUE)
 SAMTOOLS_BIN <- system("which samtools", intern = TRUE)
 

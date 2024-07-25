@@ -2,7 +2,7 @@ liblist <- c("tidyverse", "batchtools", "readxl", "Seurat", "ArchR", "pheatmap",
 l <- lapply(liblist, require, character.only = TRUE, quietly = TRUE)
 options(future.globals.maxSize = Inf)
 
-SAMPLE_META <- normalizePath("../data/snATAC_metadata_summary_2021_e.xlsx")
+SAMPLE_META <- normalizePath("../data/snATAC_metadata_summary_2021_f.xlsx")
 base_dir <- normalizePath("../data/archr/atac-2020-all")
 data_dir <- file.path(base_dir, "data")
 plot_dir <- file.path(base_dir, "plot")
@@ -15,6 +15,13 @@ drop_samples <- c("P1_7_at1_7", "i3_6_at", "I1_7")
 
 writeMsg <- function(msg) {
     writeLines(str_pad(width = getOption("width"), str_glue(setBold, msg, setNorm), side = "both"))
+}
+
+patch_age <- function(meta) {
+    meta[meta$Sample == "i4_1_at",]$Age = 72
+    meta[meta$Sample == "i4_2_at",]$Age = 69
+    meta[meta$Sample == "i4_5_at",]$Age = 71
+    return(meta)
 }
 
 main <- function() {

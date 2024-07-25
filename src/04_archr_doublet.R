@@ -5,7 +5,7 @@ CELLRANGER_COUNT_DIRS <- c(
     "/geschwindlabshares/lchenprj01/nucseq_combined/data/cellranger-atac-count/precg-atac-2020", 
     "/geschwindlabshares/lchenprj01/nucseq_nd_dpolioud/analysis/ATAC"
 )
-SAMPLE_META <- "/geschwindlabshares/lchenprj01/nucseq_combined/data/snATAC_metadata_summary_2021_d.xlsx"
+SAMPLE_META <- "../data/snATAC_metadata_summary_2021_f.xlsx"
 out_dir <- "../data/archr/atac-2020-all"
 data_dir <- normalizePath(file.path(out_dir, "data"))
 plot_dir <- normalizePath(file.path(out_dir, "plot"))

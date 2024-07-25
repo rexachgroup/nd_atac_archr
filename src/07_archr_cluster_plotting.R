@@ -1,7 +1,7 @@
 liblist <- c("tidyverse", "batchtools", "readxl", "Seurat", "ArchR", "pheatmap", "patchwork", "ragg")
 l <- lapply(liblist, require, character.only = TRUE, quietly = TRUE)
 
-SAMPLE_META <- normalizePath("../data/snATAC_metadata_summary_2021_e.xlsx")
+SAMPLE_META <- normalizePath("../data/snATAC_metadata_summary_2021_f.xlsx")
 base_dir <- normalizePath("../data/archr/atac-2020-all")
 data_dir <- file.path(base_dir, "data")
 plot_dir <- file.path(base_dir, "plot")
