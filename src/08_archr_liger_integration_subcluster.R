@@ -22,7 +22,8 @@ writeMsg <- function(msg) {
 RESOURCES <- list(
     ncpus = 16,
     memory = 128,
-    walltime = 86400
+    walltime = 86400,
+    partition = "bigmem"
 )
 
 nATAC <- 100000
@@ -141,7 +142,7 @@ integration_worker <- function(proj_path, out_path, sobj_cellids) {
         seRNA = sobj,
         sampleCellsATAC = nATAC,
         sampleCellsRNA = nRNA,
-        nGenes = 4000,
+        nGenes = 8000,
         addToArrow = FALSE,
         groupRNA = "ct_subcluster",
         nameCell = "predictedCell_Un",
