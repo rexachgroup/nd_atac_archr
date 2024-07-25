@@ -23,6 +23,8 @@ main <- function() {
     gscm <- getMatrixFromProject(proj_subset)
     gsc_a <- as.matrix(assays(gscm)$GeneScoreMatrix)
 
+    proj_subset$Clinical.Dx <- fct_relevel(proj_subset$Clinical.Dx, "Control")
+
     rownames(gsc_a) <- gscm@elementMetadata$name
 
     plan(multicore, workers = 8)
